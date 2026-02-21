@@ -1,0 +1,735 @@
+html, body{ overflow-x: hidden; }
+:root{
+  --bg: #0f0f10;
+  --panel: #17171a;
+  --card: var(--panel);
+  --text: #e9e9ee;
+  --muted: #b7b7c2;
+  --border: #2a2a32;
+  --input: #1d1d22;
+  --button: #202028;
+  --buttonText: #f0f0f5;
+  --accent: #ffffff;
+}
+
+/* Light theme (per Einstellung) */
+html[data-theme="light"]{
+  --bg: #f6f7fb;
+  --panel: #ffffff;
+  --card: var(--panel);
+  --text: #111827;
+  --muted: #4b5563;
+  --border: #e5e7eb;
+  --input: #f3f4f6;
+  --button: #f9fafb;
+  --buttonText: #111827;
+  --accent: #111827;
+}
+
+* { box-sizing: border-box; }
+
+/* Sticky Footer (nicht fixed): Footer sitzt unten, wenn Content kurz ist */
+html, body { height: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container { padding: 16px; max-width: 900px; margin: 0 auto; width: 100%; }
+main.container { flex: 1 0 auto; }
+.topbar { padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--panel); }
+.topbar h1 { margin: 0 0 10px 0; font-size: 18px; }
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.tabs-main,
+.tabs-tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tabs-tools { margin-left: auto; }
+.tab { padding: 8px 10px; border: 1px solid var(--border); background: var(--button); color: var(--buttonText); border-radius: 8px; cursor: pointer; }
+.tab.active { border-color: var(--accent); }
+
+.tab--icon {
+  padding: 0;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tab-icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.95;
+}
+
+.hidden { display: none; }
+.card { border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin: 12px 0; background: var(--panel); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row > * { flex: 1; min-width: 160px; }
+
+/* Stats: etwas mehr Luft zwischen den Row-Blöcken */
+.stats-row + .stats-row { margin-top: 12px; }
+
+/* Stats: Zeitraum-Switch + kompakte KPIs */
+.stats-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.seg{
+  display:inline-flex;
+  gap:6px;
+  padding:6px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background: rgba(255,255,255,0.02);
+}
+.seg-btn{
+  padding:6px 10px;
+  border-radius:10px;
+  border:1px solid transparent;
+  background: transparent;
+}
+.seg-btn.active{
+  border-color: var(--accent);
+}
+.stats-kpi{ display:flex; flex-direction:column; gap:6px; }
+.stats-kpi-main{ font-weight: 750; font-size: 22px; letter-spacing: 0.2px; }
+
+input, select, textarea { padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--input); color: var(--text); }
+textarea{ font-family: inherit; }
+button { padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--button); color: var(--buttonText); cursor: pointer; }
+button.primary { border-color: var(--accent); }
+
+.footer { padding: 12px 16px; border-top: 1px solid var(--border); color: var(--muted); background: var(--panel); }
+.small { color: var(--muted); font-size: 12px; }
+
+/* Rezept-Editor: kompakte Zutatenliste */
+.recipe-rows {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(255,255,255,0.02);
+}
+
+/* Rezepte: Quick-Buttons (Einkauf / Kochen) + ⋯ */
+.recipe-actions-inline{
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+}
+
+.btn-icon{
+  padding:0;
+  width:42px;
+  height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+}
+.btn-icon .tab-icon{ width:18px; height:18px; }
+
+.btn-cook{
+  height:42px;
+  padding:0 12px;
+  border-radius:12px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font-weight:700;
+}
+.btn-cook-icon{ display:inline-flex; font-size:18px; line-height:1; }
+.btn-cook-icon .tab-icon{ width:18px; height:18px; }
+
+/* Stepper (z.B. Portionen) */
+.portionbar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:#121622;
+}
+.portionbar-left{ display:flex; flex-direction:column; }
+
+.stepper{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+button.btn-mini{
+  padding:6px 10px;
+  border-radius:10px;
+  font-weight:800;
+  line-height:1;
+}
+
+input.step-input{
+  width:72px;
+  text-align:center;
+}
+
+.recipe-rows-head,
+.recipe-row {
+  display: grid;
+  grid-template-columns: 1.4fr 0.6fr 0.6fr 90px;
+  gap: 10px;
+  align-items: center;
+}
+
+.recipe-rows-head {
+  font-size: 12px;
+  opacity: 0.75;
+  padding: 4px 6px 10px 6px;
+}
+
+.recipe-row {
+  padding: 8px 6px;
+  border-top: 1px solid var(--border);
+}
+
+.recipe-row:first-child { border-top: 0; }
+
+.recipe-row select,
+.recipe-row input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 12px;
+}
+
+.recipe-row .btn-mini {
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+button.success {
+  border-color: rgba(34,197,94,0.6);
+  background: rgba(34,197,94,0.12);
+}
+button.success:hover { background: rgba(34,197,94,0.18); }
+
+button.danger {
+  border-color: rgba(239,68,68,0.6);
+  background: rgba(239,68,68,0.10);
+}
+button.danger:hover { background: rgba(239,68,68,0.16); }
+
+/* --- Accent Buttons (mehr Farbe, aber clean) --- */
+button.info {
+  border-color: rgba(56,189,248,0.55);
+  background: rgba(56,189,248,0.10);
+}
+button.info:hover { background: rgba(56,189,248,0.16); }
+
+button.warn {
+  border-color: rgba(245,158,11,0.55);
+  background: rgba(245,158,11,0.10);
+}
+button.warn:hover { background: rgba(245,158,11,0.16); }
+
+/* --- Expiry / Pills / Cards --- */
+.muted2 { color: rgba(183,183,194,0.75); font-size: 12px; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.exp-none { }
+.exp-green { }
+.exp-yellow { }
+.exp-orange { }
+.exp-red { }
+
+.pill.exp-green { border-color: rgba(34,197,94,0.55); background: rgba(34,197,94,0.10); }
+.pill.exp-yellow { border-color: rgba(234,179,8,0.55); background: rgba(234,179,8,0.10); }
+.pill.exp-orange { border-color: rgba(245,158,11,0.55); background: rgba(245,158,11,0.10); }
+.pill.exp-red { border-color: rgba(239,68,68,0.60); background: rgba(239,68,68,0.10); }
+.pill.exp-none { opacity: 0.75; }
+
+.card.exp-card {
+  position: relative;
+  overflow: hidden;
+}
+.card.exp-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  border-radius: 12px 0 0 12px;
+  background: rgba(255,255,255,0.12);
+}
+.card.exp-card.exp-green::before { background: rgba(34,197,94,0.70); }
+.card.exp-card.exp-yellow::before { background: rgba(234,179,8,0.70); }
+.card.exp-card.exp-orange::before { background: rgba(245,158,11,0.75); }
+.card.exp-card.exp-red::before { background: rgba(239,68,68,0.75); }
+.card.exp-card.exp-none::before { background: rgba(255,255,255,0.20); }
+
+/* --- Vorrat grouped UI --- */
+.pantry-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+.pantry-title { font-size: 18px; font-weight: 750; letter-spacing: 0.2px; }
+.pantry-right { text-align: right; }
+
+.pantry-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.batch-details {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.batch-details > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  list-style: none;
+}
+.batch-details > summary::-webkit-details-marker { display: none; }
+
+.batch-list { margin-top: 10px; }
+.batch-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.batch-row:first-child { border-top: 0; }
+
+/* --- Vorrat: kompakter wie Home --- */
+.pantry-item.card { padding: 10px; margin: 8px 0; }
+
+.pantry-titleline{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.pantry-title{ font-size: 18px; font-weight: 750; letter-spacing: 0.2px; }
+
+.pantry-meta{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  text-align:right;
+}
+.pantry-meta .small{ font-size: 12px; }
+
+.pantry-subline{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  margin-top: 8px;
+  flex-wrap:wrap;
+}
+
+.pantry-actions-inline{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.pantry-actions-inline button{ padding: 6px 10px; }
+.pantry-actions-inline input{
+  padding: 6px 8px;
+  border-radius: 8px;
+  max-width: 90px;
+}
+
+/* Chargen-Details: kleiner / weniger „klobig“ */
+.batch-details.batch-details-compact{
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.batch-details.batch-details-compact > summary{
+  cursor:pointer;
+  color: var(--muted);
+  font-size: 12px;
+  list-style: none;
+}
+.batch-details.batch-details-compact > summary::-webkit-details-marker{ display:none; }
+.batch-row{ padding: 6px 0; }
+
+/* Vorrat: noch kompakter + Pill neben Name */
+.pantry-item.card{ padding:10px; margin:8px 0; }
+
+.pantry-head{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.pantry-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.pantry-title{
+  font-size:18px;
+  font-weight:750;
+  letter-spacing:0.2px;
+}
+.pantry-pill{ padding:6px 10px; }
+
+.pantry-right{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:2px;
+  text-align:right;
+}
+.pantry-cost{ font-size:13px; opacity:0.95; }
+.pantry-expdate{ font-size:12px; opacity:0.75; }
+
+.pantry-meta-right{ font-size:12px; line-height:1.15; opacity:0.78; }
+
+.pantry-topright{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+}
+.pantry-topright .pantry-cost{ white-space:nowrap; }
+
+/* Vorrat: Footer-Zeile (Menge links, Daten rechts) */
+.pantry-footer{
+  margin-top:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+.pantry-amountline{ font-size:14px; }
+.pantry-dates-right{ font-size:12px; line-height:1.15; opacity:0.78; text-align:right; }
+
+
+/* Aktionen: Kebab-Menü (⋯) – Drawer (kein Overlay, nichts wird abgeschnitten) */
+.actions-menu, .lot-actions{ display:inline-block; }
+.actions-menu > summary,
+.lot-actions > summary{
+  cursor:pointer;
+  list-style:none;
+  user-select:none;
+  border:1px solid var(--border);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  padding:6px 10px;
+  border-radius:12px;
+  line-height:1;
+  min-width:40px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.actions-menu > summary::-webkit-details-marker,
+.lot-actions > summary::-webkit-details-marker{ display:none; }
+
+.actions-panel{
+  margin-top:8px;
+  padding:8px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow:0 14px 40px rgba(0,0,0,0.45);
+  width: 320px;
+  max-width: min(360px, calc(100vw - 56px));
+}
+
+.lot-actions .actions-panel{ width: 240px; }
+
+/* --- Settings: purchaseLog kompakt --- */
+.pl-session.card{ padding:10px; margin:8px 0; }
+.pl-session-head{ display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.pl-session-right{ display:flex; gap:10px; align-items:flex-start; }
+.pl-date{ font-weight:700; }
+.pl-total{ font-weight:800; white-space:nowrap; }
+
+.pl-items{ margin-top:8px; border-top:1px solid var(--border); }
+.pl-item{ display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid var(--border); }
+.pl-item:first-child{ border-top:0; }
+.pl-item-left{ min-width:0; }
+.pl-name{ font-weight:650; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pl-item-right{ display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+.pl-price{ font-weight:750; white-space:nowrap; }
+
+.pl-actions > summary{ padding:6px 10px; border-radius:12px; min-width:40px; }
+.pl-actions .actions-panel{ width:220px; }
+
+/* CookHistory (Settings) */
+.ch-group.card{ padding:10px; margin:8px 0; }
+.ch-head{ display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+.ch-title{ font-weight:750; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ch-items{ margin-top:8px; border-top:1px solid var(--border); }
+.ch-item{ display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-top:1px solid var(--border); }
+.ch-item:first-child{ border-top:0; }
+.ch-item-left{ min-width:0; }
+.ch-date{ font-weight:650; }
+.ch-item-right{ display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+.ch-dur{ font-weight:750; white-space:nowrap; }
+.ch-actions > summary{ padding:6px 10px; border-radius:12px; min-width:40px; }
+
+.actions-row{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  margin-top:6px;
+}
+.actions-row:first-child{ margin-top:0; }
+
+.actions-panel button{ padding:6px 10px; border-radius:12px; }
+.actions-panel input{
+  padding:6px 8px;
+  border-radius:10px;
+  width:88px;
+}
+.actions-panel input.step-input{
+  width:72px;
+  text-align:center;
+}
+
+.pantry-line2{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  margin-top:10px;
+  flex-wrap:wrap;
+}
+
+.pantry-amount{ font-size:14px; }
+.pantry-consume{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.pantry-consume button{ padding:6px 10px; }
+.pantry-consume input{
+  padding:6px 8px;
+  border-radius:8px;
+  width:82px;
+}
+
+/* Chargen-Details: nur wenn 2+ und nicht klobig */
+.batch-details.batch-details-compact{
+  margin-top:8px;
+  border-top:1px solid var(--border);
+  padding-top:8px;
+}
+.batch-details.batch-details-compact > summary{
+  cursor:pointer;
+  color: var(--muted);
+  font-size:12px;
+  list-style:none;
+}
+.batch-details.batch-details-compact > summary::-webkit-details-marker{ display:none; }
+.batch-row{ padding:6px 0; }
+
+/* Floating Action Button (Vorrat: +) */
+.fab{
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+  line-height: 1;
+  border: 1px solid rgba(56,189,248,0.55);
+  background: rgba(56,189,248,0.12);
+  box-shadow: 0 16px 44px rgba(0,0,0,0.45);
+}
+.fab:hover{ background: rgba(56,189,248,0.18); }
+.fab:active{ transform: translateY(1px); }
+
+/* Modals (vereinheitlicht für Zutaten/Rezepte/Vorrat) */
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(2px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+}
+.modal{
+  width:100%;
+  max-height:78vh;
+  overflow:auto;
+  background: var(--panel);
+  color: var(--text);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px;
+  box-shadow:0 14px 40px rgba(0,0,0,0.55);
+}
+.modal-header{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.modal-title{
+  font-weight:800;
+  font-size:18px;
+  line-height:1.2;
+}
+.modal-body{ margin-top:12px; }
+.modal-footer{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:14px;
+  flex-wrap:wrap;
+}
+.modal-close{ min-width:40px; }
+/* Barcode-Scanner Modal */
+.scan-modal{ max-height:90vh; }
+.scan-video{ width:100%; max-height:320px; object-fit:cover; border-radius:12px; border:1px solid var(--border); background:#000; }
+.scan-video-wrap{ display:flex; flex-direction:column; gap:10px; }
+.scan-hint{ opacity:0.85; }
+.scan-result{ margin-top:12px; padding:12px; border:1px solid var(--border); border-radius:12px; background: rgba(255,255,255,0.03); }
+.barcode-view{ padding:10px 12px; border:1px solid var(--border); border-radius:12px; background: rgba(255,255,255,0.03); font-weight:800; letter-spacing:0.5px; min-height:40px; display:flex; align-items:center; }
+@media (max-width:520px){
+  .scan-modal{ height: calc(100vh - 16px); max-height:none; }
+  .scan-video{ max-height:44vh; }
+}
+
+
+
+/* --- Chips (z.B. „Geplante Rezepte“) --- */
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+}
+
+.chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  font-size:12px;
+  white-space:nowrap;
+  max-width:100%;
+}
+
+/* Horizontal scrollable Filter-Chips */
+.chipbar{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+  overflow-x:hidden;
+  padding-bottom:4px;
+}
+
+.chipbtn{
+  flex:0 0 auto;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  font-size:12px;
+  white-space:nowrap;
+}
+
+.chipbtn.active{
+  border-color: rgba(255,255,255,0.6);
+}
+
+html[data-theme="light"] .chipbtn.active{
+  border-color: rgba(17,24,39,0.7);
+}
+
+button.chip-x{
+  padding:0 8px;
+  height:22px;
+  border-radius:999px;
+  font-weight:900;
+  line-height:1;
+}
+
+
+/* Nährwerte (Ingredient Modal) */
+.nutri-details {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--card);
+}
+.nutri-details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+.nutri-details > summary::-webkit-details-marker {
+  display: none;
+}
+.nutri-details > summary::after {
+  content: "▾";
+  float: right;
+  opacity: 0.7;
+}
+.nutri-details[open] > summary::after {
+  content: "▴";
+}
+
+
+.build-tag{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;font-size:12px;opacity:0.75;border:1px solid var(--border);}

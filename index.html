@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Einkauf & Rezepte</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#0b0f14" />
+    <meta name="description" content="Local-first Einkaufsliste, Vorrat und Rezepte." />
+    <link rel="icon" href="icons/favicon-64.png" sizes="64x64" type="image/png" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" sizes="180x180" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Einkauf & Rezepte" />
+
+    <!-- Zentrale Build-/Versions-Infos (einheitlich für Header + Settings + Service Worker) -->
+    <script defer src="js/appMeta.js"></script>
+
+    <script defer src="js/storage.js"></script>
+    <script defer src="js/models.js"></script>
+    <script defer src="js/utils.js"></script>
+    <script defer src="js/ui.js"></script>
+    <script defer src="js/audit.js"></script>
+    <script defer src="js/actions.js"></script>
+
+    <script defer src="js/ingredients.js"></script>
+
+    <script defer src="js/recipes/recipesLogic.js"></script>
+    <script defer src="js/recipes/recipesModals.js"></script>
+    <script defer src="js/recipes/recipesView.js"></script>
+
+    <script defer src="js/shopping.js"></script>
+
+    <!-- Home-Dashboard -->
+    <script defer src="js/dashboard.js"></script>
+
+    <script defer src="js/stats.js"></script>
+
+    <!-- Vorrat-Ansicht (war früher home.js) -->
+    <script defer src="js/inventory.js"></script>
+
+    <!-- Einstellungen -->
+    <script defer src="js/settings.js"></script>
+
+    <!-- Logs (als eigene Seiten) -->
+    <script defer src="js/purchaselog.js"></script>
+    <script defer src="js/cookhistory.js"></script>
+
+    <script defer src="js/app.js"></script>
+  </head>
+
+  <body>
+    <header class="topbar">
+      <h1>Einkauf & Rezepte <span class="build-tag" id="buildTag" aria-label="Build">v0.0.0</span></h1>
+
+      <nav class="tabs" id="tabs">
+        <div class="tabs-main">
+          <button class="tab tab--icon active" data-view="dashboard" title="Start" aria-label="Start">
+            <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 11L12 3l9 8" />
+              <path d="M5 10v11h14V10" />
+            </svg>
+          </button>
+          <button class="tab" data-view="inventory">Vorrat</button>
+          <button class="tab" data-view="ingredients">Zutaten</button>
+          <button class="tab" data-view="recipes">Rezepte</button>
+          <button class="tab" data-view="shopping">Einkaufsliste</button>
+        </div>
+
+        <div class="tabs-tools">
+          <button class="tab tab--icon" data-view="stats" title="Stats" aria-label="Stats">
+            <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 20V10" />
+              <path d="M10 20V4" />
+              <path d="M16 20V14" />
+              <path d="M22 20V7" />
+            </svg>
+          </button>
+
+          <button class="tab tab--icon" data-view="settings" title="Einstellungen" aria-label="Einstellungen">
+            <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83l-.31.31a2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2h-.44a2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0l-.31-.31a2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2v-.44a2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83l.31-.31a2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2h.44a2 2 0 0 1 2 2v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0l.31.31a2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2v.44a2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"
+              />
+            </svg>
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section id="view-dashboard" class="view"></section>
+      <section id="view-inventory" class="view hidden"></section>
+      <section id="view-ingredients" class="view hidden"></section>
+      <section id="view-recipes" class="view hidden"></section>
+      <section id="view-shopping" class="view hidden"></section>
+      <section id="view-stats" class="view hidden"></section>
+      <section id="view-settings" class="view hidden"></section>
+      <section id="view-purchaselog" class="view hidden"></section>
+      <section id="view-cookhistory" class="view hidden"></section>
+    </main>
+
+    <footer class="footer">
+      <small>Lokal gespeichert (Browser). Später: Server + Login.</small>
+    </footer>
+  </body>
+</html>
