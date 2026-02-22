@@ -1185,7 +1185,7 @@ modal.modal.addEventListener("change", (ev) => {
       const items = Array.isArray(r.items) ? r.items : [];
       if (currentItemId) {
         const cur = items.find((x) => x && x.id === currentItemId) || null;
-        if (cur && cur.kind === "item" && !cur.matchedIngredientId) return cur;
+        if (cur && cur.kind === "item" && !cur.matchedIngredientId && !cur.skippedAt) return cur;
       }
       currentItemId = findNextItemId(r);
       return currentItemId ? items.find((x) => x && x.id === currentItemId) || null : null;
