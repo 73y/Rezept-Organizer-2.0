@@ -107,6 +107,32 @@
       const line = String(lineRaw || "").trim();
       if (!line) continue;
 
+
+    // REWE Spezial: Mengen-Zeile steht oft als Folgezeile ohne Gesamtpreis:
+    //   H-MILCH ... 4,75
+    //   5 Stk x 0,95
+    // -> diese Zeile NICHT als eigenes Item werten, sondern an das vorherige Item hängen.
+    // Achtung: gilt nur, wenn wir schon mindestens ein Haupt-Item haben.
+    const mFollow = line.match(/^(\d+)\s*(?:stk|stck|stueck|stück)\s*[xX]\s*([0-9\.]+,[0-9]{2})\b/i);
+    if (mFollow && items.length) {
+      const last = items[items.length - 1];
+      // nur an "item" anhängen (nicht an Pfand/Rabatt/Misc)
+      if (last && last.kind === "item") {
+        const qtyFollow = Math.max(1, Math.round(Number(mFollow[1]) || 1));
+        const unitPriceFollow = parseEuroStr(mFollow[2]);
+        if (Number.isFinite(unitPriceFollow) && unitPriceFollow > 0) {
+          last.qty = qtyFollow;
+          last.unitPrice = Math.round(unitPriceFollow * 100) / 100;
+          // lineTotal bleibt aus der vorherigen Zeile (z.B. 4,75)
+          // Falls lineTotal aus irgendeinem Grund 0/NaN ist, rekonstruieren wir es.
+          const lt = Number(last.lineTotal);
+          if (!Number.isFinite(lt) || lt <= 0) {
+            last.lineTotal = Math.round((qtyFollow * unitPriceFollow) * 100) / 100;
+          }
+          continue; // WICHTIG: Folgezeile nicht als eigenes Item übernehmen
+        }
+      }
+    }
       if (started && RECEIPT_STOP_RE.test(line)) break;
 
       const matches = line.match(RECEIPT_PRICE_RE);
