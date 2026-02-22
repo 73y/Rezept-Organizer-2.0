@@ -102,6 +102,8 @@ function quarantineRaw(raw, reason) {
 function defaultState() {
   return {
     ingredients: [], // {id,name,amount,unit,price,shelfLifeDays}
+    ingredientCategories: [], // {id, name}
+    recipeCategories: [], // {id, name}
     recipes: [],
     plannedRecipes: [],
     shopping: [],
@@ -235,10 +237,16 @@ function ensureStateShape(state) {
       addedAt: x.addedAt ? String(x.addedAt) : new Date().toISOString()
     }));
 
+  next.ingredientCategories = Array.isArray(next.ingredientCategories) ? next.ingredientCategories : [];
+  next.recipeCategories = Array.isArray(next.recipeCategories) ? next.recipeCategories : [];
+
   next.shopping = Array.isArray(next.shopping) ? next.shopping : [];
   next.pantry = Array.isArray(next.pantry) ? next.pantry : [];
   next.purchaseLog = Array.isArray(next.purchaseLog) ? next.purchaseLog : [];
   next.wasteLog = Array.isArray(next.wasteLog) ? next.wasteLog : [];
+
+  // GAP-3: Strip non-user debug/cache data that must never be exported or restored.
+  delete next.__debug;
 
 
   next.receipts = Array.isArray(next.receipts) ? next.receipts.map(migrateReceipt).filter(Boolean) : [];
@@ -263,7 +271,7 @@ function ensureStateShape(state) {
 
   if (!("theme" in next.settings)) next.settings.theme = "dark";
 
-  // ✅ CookHistory normalisieren (ids ergänzen + Länge begrenzen)
+  // ✅ CookHistory normalisieren (ids ergänzen; kein Kürzen hier – das passiert nur beim Schreiben neuer Einträge)
   for (const r of next.recipes) {
     if (!r || typeof r !== "object") continue;
     r.items = Array.isArray(r.items) ? r.items : [];
@@ -276,11 +284,12 @@ function ensureStateShape(state) {
       const at = e.at ? String(e.at) : "";
       if (!at) continue;
       const sec = Math.max(0, Math.floor(Number(e.seconds) || 0));
-      fixed.push({ id: e.id ? String(e.id) : uid(), at, seconds: sec });
+      // Spread preserves any extra fields (future-proof); core fields are coerced.
+      fixed.push({ ...e, id: e.id ? String(e.id) : uid(), at, seconds: sec });
     }
 
-    // älteste rauswerfen
-    if (fixed.length > 30) fixed.splice(0, fixed.length - 30);
+    // NOTE: No cap here. The cap (max 100) is applied only in saveCookTime()
+    // when a new entry is appended, so existing history is never silently truncated.
     r.cookHistory = fixed;
 
     // lastCook* Felder setzen
@@ -629,10 +638,14 @@ function restoreFromRestorePoint() {
   return next;
 }
 
+// Schema version written into every export. Bump when the data model changes
+// AND a migration path is added to importStateText below.
+const CURRENT_SCHEMA = 1;
+
 function exportStateJson(state, { pretty = true } = {}) {
   const payload = {
     app: "einkauf_rezepte",
-    schema: 1,
+    schema: CURRENT_SCHEMA,
     exportedAt: nowIso(),
     state: ensureStateShape(state)
   };
@@ -643,12 +656,91 @@ function importStateText(text) {
   const raw = String(text || "");
   const parsed = safeParseJson(raw);
 
-  // akzeptiert: entweder Wrapper {state: {...}} oder direkt State
-  const maybeState = parsed && typeof parsed === "object" && parsed.state && typeof parsed.state === "object" ? parsed.state : parsed;
+  if (!parsed || typeof parsed !== "object") {
+    throw new Error("Die Datei enthält kein gültiges JSON.");
+  }
+
+  let maybeState;
+
+  // Wrapper-Format erkennen: hat sowohl .app als auch .state
+  const isWrapper = parsed.state && typeof parsed.state === "object" && parsed.app !== undefined;
+
+  if (isWrapper) {
+    // App-ID prüfen – lehnt fremde JSON-Dateien ab
+    if (parsed.app !== "einkauf_rezepte") {
+      throw new Error(
+        `Die Datei gehört nicht zu dieser App (app: "${String(parsed.app || "unbekannt")}"). Import abgebrochen.`
+      );
+    }
+
+    // Schema-Version prüfen – neuere Exporte erfordern eine App-Aktualisierung.
+    // Switch/case hier ermöglicht zukünftige Migrationspfade.
+    const schema = Number(parsed.schema);
+    if (Number.isFinite(schema)) {
+      switch (true) {
+        case schema <= CURRENT_SCHEMA:
+          // Unterstützte Version – kein Migrationsbedarf
+          break;
+        default:
+          throw new Error(
+            `Die Backup-Datei wurde mit einer neueren App-Version erstellt (Schema ${schema}, unterstützt: ${CURRENT_SCHEMA}). Bitte die App aktualisieren.`
+          );
+      }
+    }
+
+    maybeState = parsed.state;
+  } else {
+    // Direkt-Format (älterer Export oder raw state)
+    maybeState = parsed;
+  }
+
+  // Mindest-Shape: mindestens eine Kern-Collection muss ein Array sein.
+  // Schützt vor versehentlichem Import einer komplett falschen JSON-Datei.
+  const coreKeys = ["ingredients", "recipes", "shopping", "pantry", "purchaseLog", "wasteLog"];
+  const hasAnyArray = coreKeys.some((k) => Array.isArray(maybeState[k]));
+  if (!hasAnyArray) {
+    throw new Error(
+      "Die Datei sieht nicht wie ein App-Backup aus (keine bekannten Daten-Arrays gefunden). Import abgebrochen, damit keine Daten verloren gehen."
+    );
+  }
 
   const next = ensureStateShape(maybeState);
   postLoadRepair(next);
   return next;
+}
+
+// GAP-8: Checks for duplicate IDs within each collection after import.
+// Returns an array of warning strings (empty = no duplicates found).
+// Does NOT auto-merge or delete – caller decides what to show.
+function detectDuplicateIds(state) {
+  const warnings = [];
+  const collections = {
+    ingredients: state.ingredients,
+    ingredientCategories: state.ingredientCategories,
+    recipeCategories: state.recipeCategories,
+    recipes: state.recipes,
+    plannedRecipes: state.plannedRecipes,
+    shopping: state.shopping,
+    pantry: state.pantry,
+    purchaseLog: state.purchaseLog,
+    wasteLog: state.wasteLog,
+    receipts: state.receipts
+  };
+  for (const [name, arr] of Object.entries(collections)) {
+    if (!Array.isArray(arr)) continue;
+    const seen = new Set();
+    const dupes = new Set();
+    for (const item of arr) {
+      const id = item?.id;
+      if (!id) continue;
+      if (seen.has(id)) dupes.add(id);
+      else seen.add(id);
+    }
+    if (dupes.size > 0) {
+      warnings.push(`Doppelte IDs in "${name}": ${Array.from(dupes).join(", ")}`);
+    }
+  }
+  return warnings;
 }
 
 function repairState(state) {
@@ -749,5 +841,6 @@ window.dataTools = {
   repairState,
   buildDemoState,
   listQuarantines,
+  detectDuplicateIds,
   getAuditReport: () => (window.audit && typeof window.audit.getLastAuditReport === "function" ? window.audit.getLastAuditReport() : null)
 };

@@ -309,17 +309,39 @@ if (statusEl) {
           try {
             const raw = String(reader.result || "");
 
-            // Restore-Point setzen (damit du zurück kannst, falls Import Mist ist)
-            if (typeof dt.setRestorePoint === "function") dt.setRestorePoint(state);
+            // importStateText validates the file BEFORE touching state.
+            // Only set the restore point once we know parsing will succeed.
+            const next = typeof dt.importStateText === "function"
+              ? dt.importStateText(raw)
+              : (() => {
+                  const p = JSON.parse(raw);
+                  if (!p || typeof p !== "object") throw new Error("Kein gültiges JSON-Objekt.");
+                  return p;
+                })();
 
-            const next = typeof dt.importStateText === "function" ? dt.importStateText(raw) : ensureStateShape(JSON.parse(raw));
+            // Restore-Point jetzt setzen (nach Validierung, vor State-Übernahme)
+            if (typeof dt.setRestorePoint === "function") dt.setRestorePoint(state);
 
             saveState(next);
             window.app.setState(next);
+
+            // Doppelte IDs prüfen und als Warnung anzeigen (Import wird trotzdem durchgeführt)
+            if (typeof dt.detectDuplicateIds === "function") {
+              const dupeWarnings = dt.detectDuplicateIds(next);
+              if (dupeWarnings.length > 0) {
+                console.warn("Import-Warnungen (doppelte IDs):", dupeWarnings);
+                alert(
+                  "Import erfolgreich – aber es wurden doppelte IDs gefunden:\n\n" +
+                  dupeWarnings.join("\n") +
+                  "\n\nDie Daten wurden trotzdem importiert. Bitte prüfe die betroffenen Einträge."
+                );
+              }
+            }
+
             window.app.navigate("dashboard");
           } catch (err) {
             console.warn("Import fehlgeschlagen:", err);
-            alert("Import fehlgeschlagen. Bitte JSON prüfen (siehe Konsole).\n\nTipp: Wenn du willst, schick mir die JSON hier, dann prüfe ich sie dir.");
+            alert("Import fehlgeschlagen:\n\n" + (err.message || "Unbekannter Fehler – bitte JSON in der Konsole prüfen."));
           } finally {
             el.value = "";
           }

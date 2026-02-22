@@ -299,8 +299,10 @@
     const at = new Date().toISOString();
     recipe.cookHistory.push({ id: uid(), at, seconds: sec, ...meta });
 
-    // begrenzen
-    if (recipe.cookHistory.length > 30) recipe.cookHistory.splice(0, recipe.cookHistory.length - 30);
+    // Cap: behalte die 100 neuesten Einträge. Ältere werden nur hier (beim Schreiben)
+    // entfernt – niemals beim Laden/Importieren/Speichern (kein stiller Datenverlust).
+    const CAP = 100;
+    if (recipe.cookHistory.length > CAP) recipe.cookHistory.splice(0, recipe.cookHistory.length - CAP);
     recipe.lastCookSeconds = sec;
     recipe.lastCookAt = at;
   }
