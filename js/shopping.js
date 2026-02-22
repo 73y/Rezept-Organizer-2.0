@@ -442,69 +442,6 @@ function findPurchaseLogEntryForReceiptItem(state, receiptId, receiptItemId) {
     return (state.purchaseLog || []).find((e) => e && e.source === "receipt" && e.receiptId === receiptId && e.receiptItemId === receiptItemId) || null;
   }
 
-  function findPantryEntryForReceiptItem(state, receiptId, receiptItemId) {
-    return (state.pantry || []).find((p) => p && p.source === "receipt" && p.receiptId === receiptId && p.receiptItemId === receiptItemId) || null;
-  }
-
-  function upsertPantryFromReceiptItem(state, receipt, item) {
-    if (!Array.isArray(state.pantry)) state.pantry = [];
-    const existing = findPantryEntryForReceiptItem(state, receipt.id, item.id);
-
-    // Kein Match -> Pantry-Lot entfernen (falls vorhanden)
-    if (!item.matchedIngredientId) {
-      if (existing) {
-        state.pantry = (state.pantry || []).filter((p) => !(p && p.source === "receipt" && p.receiptId === receipt.id && p.receiptItemId === item.id));
-      }
-      return;
-    }
-
-    const ing = (state.ingredients || []).find((x) => x && x.id === item.matchedIngredientId) || null;
-    if (!ing) return;
-
-    const qty = Math.max(1, Math.round(Number(item.qty) || 1));
-    const unit = String(ing.unit || "");
-    const packAmt = Number(ing.amount) || 0;
-    const buyAmount = (Number.isFinite(packAmt) && packAmt > 0) ? (packAmt * qty) : qty;
-
-    const total = Number(item.lineTotal) || 0;
-    const unitPrice = Number(item.unitPrice) || (total / qty);
-    const cost = (Number.isFinite(total) && total > 0)
-      ? total
-      : ((Number.isFinite(unitPrice) && unitPrice > 0) ? (unitPrice * qty) : (Number(ing.price) || 0) * qty);
-
-    const boughtAt = receipt.at || new Date().toISOString();
-    const expiresAt = calcExpiresAt(boughtAt, ing.shelfLifeDays);
-
-    if (!existing) {
-      state.pantry.push({
-        id: uid(),
-        ingredientId: ing.id,
-        amount: buyAmount,
-        unit,
-        boughtAt,
-        expiresAt,
-        cost,
-        source: "receipt",
-        receiptId: receipt.id,
-        receiptItemId: item.id,
-        packs: qty,
-        rawName: item.rawName || "",
-        unitPrice
-      });
-      return;
-    }
-
-    existing.ingredientId = ing.id;
-    existing.amount = buyAmount;
-    existing.unit = unit;
-    existing.boughtAt = boughtAt;
-    existing.expiresAt = expiresAt;
-    existing.cost = cost;
-    existing.packs = qty;
-    existing.rawName = item.rawName || "";
-    existing.unitPrice = unitPrice;
-  }
-
   function upsertPurchaseLogFromReceiptItem(state, receipt, item) {
     const at = receipt.at;
     const entry = findPurchaseLogEntryForReceiptItem(state, receipt.id, item.id);
@@ -558,6 +495,73 @@ function findPurchaseLogEntryForReceiptItem(state, receiptId, receiptItemId) {
     } else {
       entry.unit = "";
       entry.buyAmount = 0;
+    }
+  }
+
+
+  // --- Pantry aus Bon-Items (Receipt) ---
+  function findPantryLotsForReceiptItem(state, receiptId, receiptItemId) {
+    return (state.pantry || []).filter(
+      (p) => p && p.source === "receipt" && p.receiptId === receiptId && p.receiptItemId === receiptItemId
+    );
+  }
+
+  function calcExpiresAtISO(boughtAtISO, shelfLifeDays) {
+    const days = Number(shelfLifeDays || 0);
+    if (!Number.isFinite(days) || days <= 0) return null;
+    const ms = new Date(boughtAtISO).getTime() + days * 24 * 60 * 60 * 1000;
+    return new Date(ms).toISOString();
+  }
+
+  // Legt Pantry-Lots für einen Bon-Artikel an (idempotent).
+  // Strategie: 1 Lot pro Packung (qty), damit Ablaufdaten sauber sind.
+  function upsertPantryFromReceiptItem(state, receipt, item) {
+    try {
+      if (!receipt || !item || item.kind !== "item") return;
+      const ingId = item.matchedIngredientId;
+      if (!ingId) return;
+
+      if (!Array.isArray(state.pantry)) state.pantry = [];
+
+      // schon vorhanden? -> nichts tun
+      const existingLots = findPantryLotsForReceiptItem(state, receipt.id, item.id);
+      if (existingLots.length) return;
+
+      const ing = (state.ingredients || []).find((x) => x && x.id === ingId) || null;
+      if (!ing) return;
+
+      const qty = Math.max(1, Math.round(Number(item.qty) || 1));
+      const packAmt = Number(ing.amount) || 0;
+      const unit = ing.unit || "";
+
+      // Wenn Packungsmenge fehlt, lieber NICHT automatisch in Vorrat schreiben (sonst Müllwerte).
+      if (!Number.isFinite(packAmt) || packAmt <= 0) return;
+
+      const lineTotal = Number(item.lineTotal) || 0;
+      const unitPrice = Number(item.unitPrice) || (lineTotal > 0 ? lineTotal / qty : Number(ing.price) || 0);
+
+      const boughtAt = receipt.at || new Date().toISOString();
+      const expiresAt = calcExpiresAtISO(boughtAt, ing.shelfLifeDays);
+
+      for (let i = 0; i < qty; i++) {
+        state.pantry.push({
+          id: uid(),
+          ingredientId: ing.id,
+          amount: packAmt,
+          unit,
+          boughtAt,
+          expiresAt,
+          cost: Math.round((Number(unitPrice) || 0) * 100) / 100,
+          source: "receipt",
+          receiptId: receipt.id,
+          receiptItemId: item.id,
+          rawName: item.rawName,
+          packIndex: i + 1,
+          packs: qty
+        });
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -699,8 +703,6 @@ modal.modal.addEventListener("change", (ev) => {
 
         // keep purchaseLog in sync
         upsertPurchaseLogFromReceiptItem(state, r, it);
-        // keep pantry in sync (so mapped receipt items land in Vorrat)
-        upsertPantryFromReceiptItem(state, r, it);
 
         persist();
         // re-render body
@@ -1301,6 +1303,7 @@ modal.modal.addEventListener("change", (ev) => {
       r.updatedAt = new Date().toISOString();
 
       upsertPurchaseLogFromReceiptItem(state, r, cur);
+      // Direkt in Vorrat übernehmen, sobald eine Zutat zugeordnet ist.
       upsertPantryFromReceiptItem(state, r, cur);
       persist();
 
@@ -1330,16 +1333,8 @@ modal.modal.addEventListener("change", (ev) => {
         })(),
         requirePrice: true,
         onDone: () => {
-          try {
-            const rr = getReceipt() || r;
-            const item = (rr?.items || []).find((x) => x && x.id === cur.id) || cur;
-            if (rr && item) {
-              // Nach dem Bearbeiten: Pantry/Log aktualisieren (Preis/Haltbarkeit können sich geändert haben)
-              upsertPurchaseLogFromReceiptItem(state, rr, item);
-              upsertPantryFromReceiptItem(state, rr, item);
-              persist();
-            }
-          } catch {}
+          // Nach dem Bearbeiten nochmal in Vorrat übernehmen (falls vorher wegen fehlender Packungsmenge geskippt).
+          try { upsertPantryFromReceiptItem(state, getReceipt() || r, cur); } catch {}
           currentItemId = findNextItemId(getReceipt() || r);
           render();
           startCamera();
@@ -1389,21 +1384,15 @@ modal.modal.addEventListener("change", (ev) => {
               item.matchedIngredientId = newIng.id;
               rr.updatedAt = new Date().toISOString();
               upsertPurchaseLogFromReceiptItem(state, rr, item);
+              // Neu angelegte Zutat -> direkt in Vorrat übernehmen
               upsertPantryFromReceiptItem(state, rr, item);
               persist();
             }
           } catch {}
         },
         onDone: () => {
-          try {
-            const rr = getReceipt() || r;
-            const item = (rr?.items || []).find((x) => x && x.id === currentItemId) || null;
-            if (rr && item) {
-              upsertPurchaseLogFromReceiptItem(state, rr, item);
-              upsertPantryFromReceiptItem(state, rr, item);
-              persist();
-            }
-          } catch {}
+          // Nach dem Bearbeiten nochmal in Vorrat übernehmen (falls vorher wegen fehlender Packungsmenge geskippt).
+          try { upsertPantryFromReceiptItem(state, getReceipt() || r, cur); } catch {}
           currentItemId = findNextItemId(getReceipt() || r);
           render();
           startCamera();

@@ -351,35 +351,10 @@
 
     
 
-    // Haltbarkeit: Datum -> Tage (Basis: baseDate)
-    const shelfDateEl = modal.querySelector("#i-shelf-date");
-    const shelfInfoEl = modal.querySelector("#i-shelf-info");
-    const updateShelfInfo = () => {
-      if (!shelfDateEl || !shelfInfoEl) return;
-      const raw = (shelfDateEl.value || "").trim();
-      if (!raw) {
-        shelfInfoEl.textContent = "";
-        return;
-      }
-      const p = parseBestBeforeInput(raw, baseDate);
-      if (!p?.ok) {
-        shelfInfoEl.textContent = "Bitte Datum als TT.MM oder TT.MM.JJ eingeben.";
-        return;
-      }
-      shelfInfoEl.textContent = `${p.days} Tag(e) haltbar`;
-    };
-
-    if (shelfDateEl) {
-      shelfDateEl.addEventListener("input", updateShelfInfo);
-      shelfDateEl.addEventListener("blur", () => {
-        const raw = (shelfDateEl.value || "").trim();
-        if (!raw) return updateShelfInfo();
-        const p = parseBestBeforeInput(raw, baseDate);
-        if (p?.ok) shelfDateEl.value = p.normalized;
-        updateShelfInfo();
-      });
-      updateShelfInfo();
-    }
+    // NOTE:
+    // Haltbarkeits-UI (Datum -> Tage) darf hier NICHT hängen, weil buildModal
+    // generisch ist und kein baseDate im Scope hat.
+    // Die Listener werden im Zutaten-Modal (openIngredientModal) gesetzt.
 modal.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-action]");
       if (!btn) return;
@@ -1219,6 +1194,37 @@ modal.addEventListener("click", (e) => {
         onDone?.({ saved: false, ingredient: null, isNew: !isEdit });
       }
     });
+
+    // Haltbarkeit: Datum -> Tage (Basis: baseDate)
+    // Muss hier sitzen (openIngredientModal), weil hier baseDate im Scope ist.
+    const shelfDateEl = modal.querySelector("#i-shelf-date");
+    const shelfInfoEl = modal.querySelector("#i-shelf-info");
+    const updateShelfInfo = () => {
+      if (!shelfDateEl || !shelfInfoEl) return;
+      const raw = (shelfDateEl.value || "").trim();
+      if (!raw) {
+        shelfInfoEl.textContent = "";
+        return;
+      }
+      const p = parseBestBeforeInput(raw, baseDate);
+      if (!p?.ok) {
+        shelfInfoEl.textContent = "Bitte Datum als TT.MM oder TT.MM.JJ eingeben.";
+        return;
+      }
+      shelfInfoEl.textContent = `${p.days} Tag(e) haltbar`;
+    };
+
+    if (shelfDateEl) {
+      shelfDateEl.addEventListener("input", updateShelfInfo);
+      shelfDateEl.addEventListener("blur", () => {
+        const raw = (shelfDateEl.value || "").trim();
+        if (!raw) return updateShelfInfo();
+        const p = parseBestBeforeInput(raw, baseDate);
+        if (p?.ok) shelfDateEl.value = p.normalized;
+        updateShelfInfo();
+      });
+      updateShelfInfo();
+    }
 
     function refreshCategorySelect() {
       const sel = modal.querySelector("#i-cat");

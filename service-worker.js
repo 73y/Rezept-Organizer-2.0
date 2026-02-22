@@ -1,4 +1,4 @@
-/* service-worker.js */
+/* service-worker.js (build 20260222130000) */
 importScripts("./js/appMeta.js");
 
 const META = self.APP_META || {};

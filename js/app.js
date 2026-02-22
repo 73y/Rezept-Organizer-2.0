@@ -134,13 +134,29 @@
     showView(currentView);
   });
 
-  // PWA: Service Worker registrieren
+  // PWA: Service Worker nur in Production registrieren.
+  // Dev (localhost/LAN/ngrok): SW aus, damit Updates nicht "kleben".
+  const isProd = !!(window.APP_META && window.APP_META.isProd);
+
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", async () => {
+      // Dev: vorhandene SW-Registrierungen für diese Origin entfernen.
+      if (!isProd) {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const r of regs) {
+            try { await r.unregister(); } catch {}
+          }
+        } catch {}
+        setBuildTagStatus("DEV (SW aus)");
+        return;
+      }
+
       try {
         let refreshing = false;
 
-        const reg = await navigator.serviceWorker.register("./service-worker.js", {
+        const v = encodeURIComponent(window.APP_META?.buildId || window.APP_META?.version || "prod");
+        const reg = await navigator.serviceWorker.register(`./service-worker.js?v=${v}`, {
           updateViaCache: "none"
         });
 

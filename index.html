@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Einkauf & Rezepte</title>
-    <link rel="stylesheet" href="styles.css" />
+    <!-- Styles wird mit Cachebuster geladen (siehe Script-Loader unten) -->
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#0b0f14" />
     <meta name="description" content="Local-first Einkaufsliste, Vorrat und Rezepte." />
@@ -15,39 +15,48 @@
     <meta name="apple-mobile-web-app-title" content="Einkauf & Rezepte" />
 
     <!-- Zentrale Build-/Versions-Infos (einheitlich für Header + Settings + Service Worker) -->
-    <script defer src="js/appMeta.js"></script>
+    <script src="js/appMeta.js"></script>
 
-    <script defer src="js/storage.js"></script>
-    <script defer src="js/models.js"></script>
-    <script defer src="js/utils.js"></script>
-    <script defer src="js/ui.js"></script>
-    <script defer src="js/audit.js"></script>
-    <script defer src="js/actions.js"></script>
+    <!--
+      Dev-Workflow ohne Stress:
+      - Alle CSS/JS-Dateien werden mit ?v=<buildId> geladen (= Cachebuster)
+      - Dadurch bekommst du NICHT mehr "alte ingredients.js" durch Browsercache/SW.
+      - Service Worker wird zusätzlich in app.js nur in Production (GitHub Pages) registriert.
+    -->
+    <script>
+      (function () {
+        const meta = window.APP_META || {};
+        const v = encodeURIComponent(meta.buildId || meta.version || String(Date.now()));
 
-    <script defer src="js/ingredients.js"></script>
+        // Styles (cachebusting)
+        document.write('<link rel="stylesheet" href="styles.css?v=' + v + '">');
 
-    <script defer src="js/recipes/recipesLogic.js"></script>
-    <script defer src="js/recipes/recipesModals.js"></script>
-    <script defer src="js/recipes/recipesView.js"></script>
+        const files = [
+          'js/storage.js',
+          'js/models.js',
+          'js/utils.js',
+          'js/ui.js',
+          'js/audit.js',
+          'js/actions.js',
+          'js/ingredients.js',
+          'js/recipes/recipesLogic.js',
+          'js/recipes/recipesModals.js',
+          'js/recipes/recipesView.js',
+          'js/shopping.js',
+          'js/dashboard.js',
+          'js/stats.js',
+          'js/inventory.js',
+          'js/settings.js',
+          'js/purchaselog.js',
+          'js/cookhistory.js',
+          'js/app.js'
+        ];
 
-    <script defer src="js/shopping.js"></script>
-
-    <!-- Home-Dashboard -->
-    <script defer src="js/dashboard.js"></script>
-
-    <script defer src="js/stats.js"></script>
-
-    <!-- Vorrat-Ansicht (war früher home.js) -->
-    <script defer src="js/inventory.js"></script>
-
-    <!-- Einstellungen -->
-    <script defer src="js/settings.js"></script>
-
-    <!-- Logs (als eigene Seiten) -->
-    <script defer src="js/purchaselog.js"></script>
-    <script defer src="js/cookhistory.js"></script>
-
-    <script defer src="js/app.js"></script>
+        for (const f of files) {
+          document.write('<script defer src="' + f + '?v=' + v + '"></' + 'script>');
+        }
+      })();
+    </script>
   </head>
 
   <body>

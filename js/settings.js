@@ -265,11 +265,16 @@ if (swMetaEl) {
 
 // Compute update status
 if (statusEl) {
-  const targetCache = meta.cacheName || "";
-  const cacheTxt = (container.querySelector("#about-sw-cache")?.textContent || "");
-  const swOk = !!(swVer && swBuild && meta.version && meta.buildId && swVer === meta.version && swBuild === meta.buildId);
-  const cacheOk = !!(targetCache && cacheTxt && cacheTxt.includes(targetCache));
-  statusEl.textContent = (swOk || cacheOk) ? "Up to date" : "Update verfügbar";
+  // Dev: kein SW aktiv -> Update-Status nicht als "Update verfügbar" anzeigen
+  if (meta && meta.isProd === false) {
+    statusEl.textContent = "Dev (SW aus)";
+  } else {
+    const targetCache = meta.cacheName || "";
+    const cacheTxt = (container.querySelector("#about-sw-cache")?.textContent || "");
+    const swOk = !!(swVer && swBuild && meta.version && meta.buildId && swVer === meta.version && swBuild === meta.buildId);
+    const cacheOk = !!(targetCache && cacheTxt && cacheTxt.includes(targetCache));
+    statusEl.textContent = (swOk || cacheOk) ? "Up to date" : "Update verfügbar";
+  }
 }
 } catch {
         // ignore
