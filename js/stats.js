@@ -100,11 +100,6 @@
       .filter((x) => x.at && Number.isFinite(x.total) && x.total > 0);
   }
 
-  function collectPurchaseEntries(state) {
-    return collectPurchaseItems(state).map((x) => ({ at: x.at, total: x.total }));
-  }
-
-
   function collectWasteEntries(state) {
     const arr = Array.isArray(state.wasteLog) ? state.wasteLog : [];
     return arr

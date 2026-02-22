@@ -243,7 +243,7 @@
       const brands = String(prod.brands || "").trim();
 
       let parsed = null;
-      if (prod.product_quantity && prod.product_quantity_unit) parsed = parseOffQuantity(`${prod.product_quantity}${prod.product_quantity_unit}`);
+      if (prod.product_quantity && prod.product_quantity_unit) parsed = parseOffQuantity(prod.product_quantity, prod.product_quantity_unit);
       if (!parsed && prod.quantity) parsed = parseQuantityString(String(prod.quantity));
 
       const ingredientsText = String(prod.ingredients_text_de || prod.ingredients_text || "").trim();
@@ -266,9 +266,9 @@
     // IMPORTANT: use production (.org) first. The .net domain is staging and may behave differently / require auth.
     const urls = [
       `${OFF_BASE_FALLBACK}${encodeURIComponent(code)}?fields=${encodeURIComponent(OFF_FIELDS)}&lc=de&cc=de`,
-      `${OFF_V0_FALLBACK}${encodeURIComponent(code)}.json`,
+      `${OFF_V0_ORG}${encodeURIComponent(code)}.json`,
       `${OFF_BASE}${encodeURIComponent(code)}?fields=${encodeURIComponent(OFF_FIELDS)}&lc=de&cc=de`,
-      `${OFF_V0}${encodeURIComponent(code)}.json`
+      `${OFF_V0_NET}${encodeURIComponent(code)}.json`
     ];
 
     for (const url of urls) {

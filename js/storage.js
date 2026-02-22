@@ -444,8 +444,8 @@ function postLoadRepair(state) {
 
   // 2) plannedRecipes -> Shopping anheben (wenn verfügbar)
   try {
-    if (typeof window.reconcileShoppingWithPlan === "function") {
-      window.reconcileShoppingWithPlan(state, { mode: "raise" });
+    if (typeof window.recipesLogic?.reconcileShoppingWithPlan === "function") {
+      window.recipesLogic.reconcileShoppingWithPlan(state, { mode: "raise" });
     }
   } catch (e) {
     console.warn("Plan-Reconcile Fehler:", e);
@@ -454,7 +454,11 @@ function postLoadRepair(state) {
 
 function safeParseJson(raw) {
   const text = String(raw || "");
-  return JSON.parse(text);
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 function loadStateFromKey(key) {
@@ -599,7 +603,7 @@ function setRestorePoint(state) {
     writeMeta(meta);
     return true;
   } catch {
-    return null;
+    return false;
   }
 }
 
@@ -607,7 +611,7 @@ function hasRestorePoint() {
   try {
     return !!localStorage.getItem(RESTORE_POINT_KEY);
   } catch {
-    return null;
+    return false;
   }
 }
 

@@ -49,8 +49,8 @@
     return (head + parts.join(" | ")).slice(0, 260);
   }
 
-  function offDebugHtml(state, code) {
-    const line = offDebugLineFromState(state, code);
+  function offDebugHtml(state) {
+    const line = offDebugLineFromState(state);
     if (!line) return "";
     return `<div class="small muted2" style="margin-top:4px;">OFF: ${esc(line)}</div>`;
   }
