@@ -1359,7 +1359,7 @@ modal.modal.addEventListener("change", (ev) => {
       if (!ing || !window.ingredients?.openIngredientModal) {
         currentItemId = findNextItemId(r);
         render();
-        resumeScan();
+        if (currentItemId) resumeScan();
         return;
       }
 
@@ -1384,7 +1384,7 @@ modal.modal.addEventListener("change", (ev) => {
           try { upsertPantryFromReceiptItem(state, getReceipt() || r, cur); } catch {}
           currentItemId = findNextItemId(getReceipt() || r);
           render();
-          startCamera();
+          if (currentItemId) startCamera();
         }
       });
     }
@@ -1442,7 +1442,7 @@ modal.modal.addEventListener("change", (ev) => {
           try { upsertPantryFromReceiptItem(state, getReceipt() || r, cur); } catch {}
           currentItemId = findNextItemId(getReceipt() || r);
           render();
-          startCamera();
+          if (currentItemId) startCamera();
         }
       });
     }
@@ -1658,11 +1658,8 @@ Die Zutat wird aber in „Zutaten“ angelegt (minimal), damit du sie später sa
 
         // zum nächsten Item
         currentItemId = findNextItemId(getReceipt());
-        resultEl.innerHTML = "";
-        msgEl.textContent = "Übersprungen.";
         render();
-        // Scan weiterlaufen lassen
-        resumeScan();
+        if (currentItemId) resumeScan();
         return;
       }
 

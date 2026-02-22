@@ -191,7 +191,10 @@ function migrateReceiptItem(old) {
     unitPrice: Math.round((Number(up) || 0) * 100) / 100,
     lineTotal: Math.round((Number(lt) || 0) * 100) / 100,
     matchedIngredientId,
-    kind
+    kind,
+    skippedAt: old.skippedAt ? String(old.skippedAt) : null,
+    skipReason: old.skipReason ? String(old.skipReason) : null,
+    offName: old.offName ? String(old.offName) : null
   };
 }
 

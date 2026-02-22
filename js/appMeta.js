@@ -1,8 +1,8 @@
 (() => {
   // Zentrale Build-/Versions-Infos.
   // Regel: bei JEDEM Update die version erhöhen. buildId kann pro Deploy neu sein.
-  const version = "v0.5.9";
-  const buildId = "20260222140000";
+  const version = "v0.6.1";
+  const buildId = "20260222160000";
 
   // Production nur auf GitHub Pages (und optional eigener Domain). Alles andere = Dev.
   // Damit vermeidest du beim Entwickeln (localhost/LAN/ngrok) das "alte Datei"-Chaos durch SW.
