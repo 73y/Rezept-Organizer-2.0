@@ -107,32 +107,6 @@
       const line = String(lineRaw || "").trim();
       if (!line) continue;
 
-
-    // REWE Spezial: Mengen-Zeile steht oft als Folgezeile ohne Gesamtpreis:
-    //   H-MILCH ... 4,75
-    //   5 Stk x 0,95
-    // -> diese Zeile NICHT als eigenes Item werten, sondern an das vorherige Item hängen.
-    // Achtung: gilt nur, wenn wir schon mindestens ein Haupt-Item haben.
-    const mFollow = line.match(/^(\d+)\s*(?:stk|stck|stueck|stück)\s*[xX]\s*([0-9\.]+,[0-9]{2})\b/i);
-    if (mFollow && items.length) {
-      const last = items[items.length - 1];
-      // nur an "item" anhängen (nicht an Pfand/Rabatt/Misc)
-      if (last && last.kind === "item") {
-        const qtyFollow = Math.max(1, Math.round(Number(mFollow[1]) || 1));
-        const unitPriceFollow = parseEuroStr(mFollow[2]);
-        if (Number.isFinite(unitPriceFollow) && unitPriceFollow > 0) {
-          last.qty = qtyFollow;
-          last.unitPrice = Math.round(unitPriceFollow * 100) / 100;
-          // lineTotal bleibt aus der vorherigen Zeile (z.B. 4,75)
-          // Falls lineTotal aus irgendeinem Grund 0/NaN ist, rekonstruieren wir es.
-          const lt = Number(last.lineTotal);
-          if (!Number.isFinite(lt) || lt <= 0) {
-            last.lineTotal = Math.round((qtyFollow * unitPriceFollow) * 100) / 100;
-          }
-          continue; // WICHTIG: Folgezeile nicht als eigenes Item übernehmen
-        }
-      }
-    }
       if (started && RECEIPT_STOP_RE.test(line)) break;
 
       const matches = line.match(RECEIPT_PRICE_RE);
@@ -448,10 +422,10 @@
   }
   function receiptProgress(receipt) {
     const items = Array.isArray(receipt?.items) ? receipt.items : [];
-    const main = items.filter((x) => x && x.kind === "item");
+    const main = items.filter((x) => x.kind === "item");
     const total = main.length;
-    const matched = main.filter((x) => x && x.matchedIngredientId).length;
-    const skipped = main.filter((x) => x && x.skippedAt).length;
+    const matched = main.filter((x) => x.matchedIngredientId).length;
+    const skipped = main.filter((x) => x.skippedAt).length;
     const done = matched + skipped;
     return { matched, skipped, done, total };
   }
@@ -462,8 +436,6 @@
     state.receipts = (state.receipts || []).filter((r) => r && r.id !== receiptId);
     // Remove any purchaseLog entries that came from this receipt (to avoid stats ghosts & duplicates after re-import)
     state.purchaseLog = (state.purchaseLog || []).filter((e) => !(e && e.source === "receipt" && e.receiptId === receiptId));
-    // Remove any pantry lots that came from this receipt (to avoid duplicates after re-import)
-    state.pantry = (state.pantry || []).filter((p) => !(p && p.source === "receipt" && p.receiptId === receiptId));
   }
 
 function findPurchaseLogEntryForReceiptItem(state, receiptId, receiptItemId) {
@@ -526,73 +498,6 @@ function findPurchaseLogEntryForReceiptItem(state, receiptId, receiptItemId) {
     }
   }
 
-
-  // --- Pantry aus Bon-Items (Receipt) ---
-  function findPantryLotsForReceiptItem(state, receiptId, receiptItemId) {
-    return (state.pantry || []).filter(
-      (p) => p && p.source === "receipt" && p.receiptId === receiptId && p.receiptItemId === receiptItemId
-    );
-  }
-
-  function calcExpiresAtISO(boughtAtISO, shelfLifeDays) {
-    const days = Number(shelfLifeDays || 0);
-    if (!Number.isFinite(days) || days <= 0) return null;
-    const ms = new Date(boughtAtISO).getTime() + days * 24 * 60 * 60 * 1000;
-    return new Date(ms).toISOString();
-  }
-
-  // Legt Pantry-Lots für einen Bon-Artikel an (idempotent).
-  // Strategie: 1 Lot pro Packung (qty), damit Ablaufdaten sauber sind.
-  function upsertPantryFromReceiptItem(state, receipt, item) {
-    try {
-      if (!receipt || !item || item.kind !== "item") return;
-      const ingId = item.matchedIngredientId;
-      if (!ingId) return;
-
-      if (!Array.isArray(state.pantry)) state.pantry = [];
-
-      // schon vorhanden? -> nichts tun
-      const existingLots = findPantryLotsForReceiptItem(state, receipt.id, item.id);
-      if (existingLots.length) return;
-
-      const ing = (state.ingredients || []).find((x) => x && x.id === ingId) || null;
-      if (!ing) return;
-
-      const qty = Math.max(1, Math.round(Number(item.qty) || 1));
-      const packAmt = Number(ing.amount) || 0;
-      const unit = ing.unit || "";
-
-      // Wenn Packungsmenge fehlt, lieber NICHT automatisch in Vorrat schreiben (sonst Müllwerte).
-      if (!Number.isFinite(packAmt) || packAmt <= 0) return;
-
-      const lineTotal = Number(item.lineTotal) || 0;
-      const unitPrice = Number(item.unitPrice) || (lineTotal > 0 ? lineTotal / qty : Number(ing.price) || 0);
-
-      const boughtAt = receipt.at || new Date().toISOString();
-      const expiresAt = calcExpiresAtISO(boughtAt, ing.shelfLifeDays);
-
-      for (let i = 0; i < qty; i++) {
-        state.pantry.push({
-          id: uid(),
-          ingredientId: ing.id,
-          amount: packAmt,
-          unit,
-          boughtAt,
-          expiresAt,
-          cost: Math.round((Number(unitPrice) || 0) * 100) / 100,
-          source: "receipt",
-          receiptId: receipt.id,
-          receiptItemId: item.id,
-          rawName: item.rawName,
-          packIndex: i + 1,
-          packs: qty
-        });
-      }
-    } catch {
-      // ignore
-    }
-  }
-
   function openReceiptDetailModal(state, persist, receiptId) {
     const receipt = (state.receipts || []).find((r) => r && r.id === receiptId);
     if (!receipt) return window.ui?.toast?.("Bon nicht gefunden.");
@@ -601,7 +506,7 @@ function findPurchaseLogEntryForReceiptItem(state, receiptId, receiptItemId) {
       const r = (state.receipts || []).find((x) => x && x.id === receiptId);
       if (!r) return `<div class="small">Bon nicht gefunden.</div>`;
 
-      const { matched, skipped, done, total } = receiptProgress(r);
+      const { matched, total } = receiptProgress(r);
 
       const ing = (state.ingredients || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
@@ -641,7 +546,7 @@ function findPurchaseLogEntryForReceiptItem(state, receiptId, receiptItemId) {
       }).join("");
 
       return `
-        <div class="small muted2">Status: <b>${done}/${total}</b> erledigt <span class="muted2">(zugeordnet ${matched}${skipped ? `, übersprungen ${skipped}` : ``})</span></div>
+        <div class="small muted2">Status: <b>${matched}/${total}</b> zugeordnet</div>
         <div class="small muted2" style="margin-top:2px;">${esc(r.store || "Bon")} · ${esc(fmtDate(r.at))} · Gesamt (berechnet): <b>${esc(euro(r.total || 0))}</b></div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:10px;">
           <button class=\"success\" data-action=\"guidedScan\" data-receipt-id=\"${esc(r.id)}\">Geführtes Scannen</button>
@@ -1173,18 +1078,17 @@ modal.modal.addEventListener("change", (ev) => {
         <div class="scan-video-wrap" style="margin-top:10px;">
           <video class="scan-video" id="rg-video" autoplay playsinline muted></video>
         </div>
-
-        <div class="row" style="margin-top:6px; align-items:center; justify-content:space-between; gap:10px;">
-          <div class="small muted2" id="rg-barcode">Barcode: —</div>
-          <button class="info" data-action="resume" title="Nächste Position (ohne Scan)">Weiter</button>
+        <div class="row" style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:6px;">
+          <div class="small muted2" id="rg-barcode" style="flex:1; min-width:0;">Barcode: —</div>
+          <button type="button" class="btn-mini" data-action="resume" style="flex:0 0 auto; width:auto; padding:8px 12px;">Weiter</button>
         </div>
 
         <div class="small muted2" id="rg-msg" style="margin-top:10px;"></div>
         <div id="rg-result" style="margin-top:12px;"></div>
 
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:14px;">
-          <button class="danger" data-action="skip">Überspringen</button>
-          <button class="primary" data-action="close">Schließen</button>
+          <button type="button" class="danger" data-action="skip">Überspringen</button>
+          <button type="button" class="primary" data-action="close">Schließen</button>
         </div>
       </div>
     `;
@@ -1300,7 +1204,7 @@ modal.modal.addEventListener("change", (ev) => {
 
       const p = receiptProgress(r);
       metaEl.textContent = `${r.store || "Bon"} · ${fmtDate(r.at)} · Gesamt: ${euro(Number(r.total) || 0)}`;
-      progEl.innerHTML = `Erledigt: <b>${p.done}/${p.total}</b> <span class="small muted2">(zugeordnet ${p.matched}${p.skipped ? `, übersprungen ${p.skipped}` : ``})</span>`;
+      progEl.innerHTML = `Erledigt: <b>${p.done}/${p.total}</b> <span class="small muted2">(${p.matched} zugeordnet, ${p.skipped} übersprungen)</span>`;
 
       const cur = getCurrentItem(r);
       if (!cur) {
@@ -1335,8 +1239,6 @@ modal.modal.addEventListener("change", (ev) => {
       r.updatedAt = new Date().toISOString();
 
       upsertPurchaseLogFromReceiptItem(state, r, cur);
-      // Direkt in Vorrat übernehmen, sobald eine Zutat zugeordnet ist.
-      upsertPantryFromReceiptItem(state, r, cur);
       persist();
 
       // Edit modal (Preis/Haltbarkeit) und danach direkt weiter scannen
@@ -1365,8 +1267,6 @@ modal.modal.addEventListener("change", (ev) => {
         })(),
         requirePrice: true,
         onDone: () => {
-          // Nach dem Bearbeiten nochmal in Vorrat übernehmen (falls vorher wegen fehlender Packungsmenge geskippt).
-          try { upsertPantryFromReceiptItem(state, getReceipt() || r, cur); } catch {}
           currentItemId = findNextItemId(getReceipt() || r);
           render();
           startCamera();
@@ -1416,15 +1316,11 @@ modal.modal.addEventListener("change", (ev) => {
               item.matchedIngredientId = newIng.id;
               rr.updatedAt = new Date().toISOString();
               upsertPurchaseLogFromReceiptItem(state, rr, item);
-              // Neu angelegte Zutat -> direkt in Vorrat übernehmen
-              upsertPantryFromReceiptItem(state, rr, item);
               persist();
             }
           } catch {}
         },
         onDone: () => {
-          // Nach dem Bearbeiten nochmal in Vorrat übernehmen (falls vorher wegen fehlender Packungsmenge geskippt).
-          try { upsertPantryFromReceiptItem(state, getReceipt() || r, cur); } catch {}
           currentItemId = findNextItemId(getReceipt() || r);
           render();
           startCamera();
@@ -1586,37 +1482,30 @@ ${offDebugHtml(state, code)}
       const a = btn.getAttribute("data-action");
 
       if (a === "close") return close();
-
-      if (a === "openBon") {
-        openReceiptDetailModal(state, persist, receiptId);
+      if (a === "resume") {
+        resumeScan();
         return;
       }
 
       if (a === "skip") {
         const r = getReceipt();
-        const cur = getCurrentItem(r);
+        const cur = r ? getCurrentItem(r) : null;
         if (!r || !cur) return;
-        const ok = confirm(`Wirklich überspringen?
-
-${cur.rawName || cur.name || "Position"}${cur.qty && Number(cur.qty) > 1 ? ` (${cur.qty}×)` : ""}
-
-Hinweis: Wird als erledigt markiert (ohne Vorrat). Du kannst es später im Bon noch zuordnen.`);
+        const ok = window.confirm(`„${cur.name || "Position"}“ wirklich überspringen?\n\n- zählt als erledigt\n- wird NICHT in den Vorrat übernommen\n- kann später im Bon weiter bearbeitet werden`);
         if (!ok) return;
-
-        try {
-          cur.skippedAt = new Date().toISOString();
-          cur.skipReason = "not_available";
-          r.updatedAt = new Date().toISOString();
-          persist();
-        } catch {}
-
-        // zum nächsten Item
-        currentItemId = findNextItemId(getReceipt());
-        resultEl.innerHTML = "";
-        msgEl.textContent = "Übersprungen.";
+        cur.skippedAt = new Date().toISOString();
+        cur.skipReason = "not_available";
+        persist();
+        // nächstes Item
+        currentItemId = findNextItemId(r);
         render();
-        // Scan weiterlaufen lassen
-        resumeScan();
+        resumeScan(); // weiter im Scan
+        return;
+      }
+
+
+      if (a === "openBon") {
+        openReceiptDetailModal(state, persist, receiptId);
         return;
       }
 
@@ -1715,7 +1604,7 @@ Hinweis: Wird als erledigt markiert (ohne Vorrat). Du kannst es später im Bon n
         <div id="rf-result" style="margin-top:12px;"></div>
 
         <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:14px;">
-          <button class="danger" data-action="skip">Überspringen</button>
+          <button data-action="resume">Weiter scannen</button>
           <button class="primary" data-action="close">Schließen</button>
         </div>
       </div>
@@ -1812,8 +1701,8 @@ Hinweis: Wird als erledigt markiert (ohne Vorrat). Du kannst es später im Bon n
       }
       const p = receiptProgress(r);
       metaEl.textContent = `${r.store || "Bon"} · ${fmtDate(r.at)} · Gesamt: ${euro(Number(r.total) || 0)}`;
-      progEl.innerHTML = `Erledigt: <b>${p.done}/${p.total}</b> <span class="small muted2">(zugeordnet ${p.matched}${p.skipped ? `, übersprungen ${p.skipped}` : ``})</span>`;
-      if (p.total > 0 && p.done >= p.total) {
+      progEl.innerHTML = `Erledigt: <b>${p.done}/${p.total}</b> <span class="small muted2">(${p.matched} zugeordnet, ${p.skipped} übersprungen)</span>`;
+      if (p.total > 0 && p.matched >= p.total) {
         bannerEl.innerHTML = `
           <div style="padding:10px; border:1px solid var(--border); border-radius:12px;">
             <div style="font-weight:800;">Fertig ✓</div>
@@ -2167,7 +2056,7 @@ function openReceiptsHub(state, persist) {
             <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
               <div style="min-width:0;">
                 <div style="font-weight:800;">${esc(r.store || "Bon")} · ${esc(fmtDate(r.at))}</div>
-                <div class="small muted2" style="margin-top:2px;">Gesamt: <b>${esc(euro(Number(r.total) || 0))}</b> · ${esc(p.done)}/${esc(p.total)} erledigt</div>
+                <div class="small muted2" style="margin-top:2px;">Gesamt: <b>${esc(euro(Number(r.total) || 0))}</b> · ${esc(p.matched)}/${esc(p.total)} zugeordnet</div>
               </div>
               <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;">
                 <button class="success" data-action="scanReceipt" data-receipt-id="${esc(r.id)}">Scannen</button>

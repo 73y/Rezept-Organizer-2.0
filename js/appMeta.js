@@ -1,24 +1,12 @@
 (() => {
   // Zentrale Build-/Versions-Infos.
   // Regel: bei JEDEM Update die version erhöhen. buildId kann pro Deploy neu sein.
-  const version = "v0.5.6";
-  const buildId = "20260222111006";
-
-  // Production nur auf GitHub Pages (und optional eigener Domain). Alles andere = Dev.
-  // Damit vermeidest du beim Entwickeln (localhost/LAN/ngrok) das "alte Datei"-Chaos durch SW.
-  const isProd = (() => {
-    const h = String(location?.hostname || "").toLowerCase();
-    // GitHub Pages
-    if (h.endsWith("github.io")) return true;
-    // Optional: eigene Domain hier ergänzen
-    // if (h === "deine-domain.de") return true;
-    return false;
-  })();
+  const version = "v0.5.7";
+  const buildId = "20260222113242";
 
   const meta = {
     version,
     buildId,
-    isProd,
     // Ein Cache-Name, der *beides* enthält: Release + Build.
     // So siehst du im UI sofort, ob SW/Cache wirklich zu deinem Release passt.
     cacheName: `einkauf-rezepte-pwa-${version}-${buildId}`
