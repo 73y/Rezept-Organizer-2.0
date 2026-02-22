@@ -687,6 +687,21 @@ ${r.store || "Bon"} · ${fmtDate(r.at)}
 Hinweis: Dazu werden auch die zugehörigen Ausgaben-Einträge entfernt.`);
         if (!ok) return;
 
+// Optional: Beim Überspringen trotzdem als Zutat anlegen (ohne Vorrat/PurchaseLog).
+try {
+  const nameRaw = String(cur.offName || cur.rawName || cur.name || "").trim();
+  if (nameRaw) {
+    const list = Array.isArray(state.ingredients) ? state.ingredients : (state.ingredients = []);
+    const exists = list.find((x) => String(x?.name || "").trim().toLowerCase() === nameRaw.toLowerCase());
+    if (!exists) {
+      const q = Math.max(1, Number(cur?.qty) || 1);
+      const lt = Number(cur?.lineTotal);
+      const unitPrice = (Number.isFinite(lt) && lt > 0) ? (Math.round((lt / q) * 100) / 100) : 0;
+      list.push({ id: uid(), name: nameRaw, barcode: "", amount: 1, unit: "Stück", price: unitPrice, shelfLifeDays: 0 });
+    }
+  }
+} catch {}
+
         deleteReceiptAndRelated(state, id);
         persist();
         modal.close();
@@ -1182,7 +1197,7 @@ modal.modal.addEventListener("change", (ev) => {
         <div class="small muted2" id="rg-msg" style="margin-top:10px;"></div>
         <div id="rg-result" style="margin-top:12px;"></div>
 
-        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:14px;">
+        <div style="display:flex; gap:10px; flex-wrap:nowrap; justify-content:flex-end; margin-top:14px;">
           <button class="danger" data-action="skip">Überspringen</button>
           <button class="primary" data-action="close">Schließen</button>
         </div>
@@ -1593,19 +1608,50 @@ ${offDebugHtml(state, code)}
       }
 
       if (a === "skip") {
+        // Robust: immer verhindern, dass irgendein "Default" (z.B. Form-Submit) dazwischenfunkt
+        try { ev.preventDefault?.(); ev.stopPropagation?.(); } catch {}
+
         const r = getReceipt();
         const cur = getCurrentItem(r);
         if (!r || !cur) return;
+
+        const label = (cur.rawName || cur.name || "Position").trim();
         const ok = confirm(`Wirklich überspringen?
 
-${cur.rawName || cur.name || "Position"}${cur.qty && Number(cur.qty) > 1 ? ` (${cur.qty}×)` : ""}
+${label}${cur.qty && Number(cur.qty) > 1 ? ` (${cur.qty}×)` : ""}
 
-Hinweis: Wird als erledigt markiert (ohne Vorrat). Du kannst es später im Bon noch zuordnen.`);
+Hinweis: Wird als erledigt markiert. Es wird NICHT in den Vorrat gebucht.
+Die Zutat wird aber in „Zutaten“ angelegt (minimal), damit du sie später sauber bearbeiten kannst.`);
         if (!ok) return;
 
+        // 1) Minimal-Zutat sicher anlegen (falls noch nicht vorhanden)
+        try {
+          const nameRaw = String(label || "").trim();
+          if (nameRaw) {
+            const exists = (state.ingredients || []).some((x) => String(x?.name || "").trim().toLowerCase() === nameRaw.toLowerCase());
+            if (!exists) {
+              const newIng = {
+                id: uid(),
+                name: nameRaw,
+                barcode: "",
+                amount: 1,
+                unit: "Stück",
+                price: 0,
+                shelfLifeDays: 0,
+                nutriments: null,
+                categoryId: null,
+                unlisted: false
+              };
+              if (!Array.isArray(state.ingredients)) state.ingredients = [];
+              state.ingredients.push(newIng);
+            }
+          }
+        } catch {}
+
+        // 2) Bon-Position als erledigt markieren
         try {
           cur.skippedAt = new Date().toISOString();
-          cur.skipReason = "not_available";
+          cur.skipReason = "skipped";
           r.updatedAt = new Date().toISOString();
           persist();
         } catch {}
@@ -1714,7 +1760,7 @@ Hinweis: Wird als erledigt markiert (ohne Vorrat). Du kannst es später im Bon n
         <div class="small muted2" id="rf-msg" style="margin-top:10px;"></div>
         <div id="rf-result" style="margin-top:12px;"></div>
 
-        <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:14px;">
+        <div style="display:flex; gap:10px; flex-wrap:nowrap; justify-content:flex-end; margin-top:14px;">
           <button class="danger" data-action="skip">Überspringen</button>
           <button class="primary" data-action="close">Schließen</button>
         </div>
