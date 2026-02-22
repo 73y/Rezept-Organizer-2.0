@@ -1185,8 +1185,8 @@ modal.modal.addEventListener("change", (ev) => {
 
         <div id="rg-next" style="margin-top:10px;"></div>
 
-        <div class="scan-video-wrap" style="margin-top:10px;">
-          <video class="scan-video" id="rg-video" autoplay playsinline muted></video>
+        <div class="scan-video-wrap" style="margin-top:10px; max-height:240px; overflow:hidden;">
+          <video class="scan-video" id="rg-video" autoplay playsinline muted style="width:100%; max-height:240px; object-fit:cover; display:block; pointer-events:none;"></video>
         </div>
 
         <div class="row" style="margin-top:6px; align-items:center; justify-content:space-between; gap:10px;">
@@ -1296,7 +1296,7 @@ modal.modal.addEventListener("change", (ev) => {
       const items = Array.isArray(r.items) ? r.items : [];
       if (currentItemId) {
         const cur = items.find((x) => x && x.id === currentItemId) || null;
-        if (cur && cur.kind === "item" && !cur.matchedIngredientId) return cur;
+        if (cur && cur.kind === "item" && !cur.matchedIngredientId && !cur.skippedAt) return cur;
       }
       currentItemId = findNextItemId(r);
       return currentItemId ? items.find((x) => x && x.id === currentItemId) || null : null;
@@ -1699,7 +1699,10 @@ Die Zutat wird aber in „Zutaten“ angelegt (minimal), damit du sie später sa
       }
     });
 
-    
+    // initial
+    render();
+    startCamera();
+  }
 
   // --- 0.4.2: Freies Scannen für Bons (Barcode -> Vorschläge (Top 3 Bon-Items) -> Bearbeiten -> weiter scannen) ---
   function suggestReceiptItemsByName(receipt, queryName, limit = 3) {
@@ -1753,8 +1756,8 @@ Die Zutat wird aber in „Zutaten“ angelegt (minimal), damit du sie später sa
 
         <div id="rf-banner" style="margin-top:10px;"></div>
 
-        <div class="scan-video-wrap" style="margin-top:10px;">
-          <video class="scan-video" id="rf-video" autoplay playsinline muted></video>
+        <div class="scan-video-wrap" style="margin-top:10px; max-height:240px; overflow:hidden;">
+          <video class="scan-video" id="rf-video" autoplay playsinline muted style="width:100%; max-height:240px; object-fit:cover; display:block; pointer-events:none;"></video>
         </div>
 
         <div class="small muted2" id="rf-msg" style="margin-top:10px;"></div>
@@ -2138,6 +2141,49 @@ Die Zutat wird aber in „Zutaten“ angelegt (minimal), damit du sie später sa
         return;
       }
 
+      if (a === "skip") {
+        try { ev.preventDefault?.(); ev.stopPropagation?.(); } catch {}
+
+        // Im freien Scannen: nächstes offenes Bon-Item überspringen
+        const items = Array.isArray(r.items) ? r.items : [];
+        const cur = items.find((it) => it && it.kind === "item" && !it.matchedIngredientId && !it.skippedAt) || null;
+        if (!cur) {
+          msgEl.textContent = "Kein offener Bon-Artikel mehr zum Überspringen.";
+          return;
+        }
+
+        const label = (cur.rawName || cur.name || "Position").trim();
+        const ok = confirm(`Wirklich überspringen?\n\n${label}${cur.qty && Number(cur.qty) > 1 ? ` (${cur.qty}×)` : ""}\n\nHinweis: Wird als erledigt markiert. Es wird NICHT in den Vorrat gebucht.\nDie Zutat wird aber in „Zutaten" angelegt (minimal), damit du sie später sauber bearbeiten kannst.`);
+        if (!ok) return;
+
+        // Minimal-Zutat anlegen (falls noch nicht vorhanden)
+        try {
+          const nameRaw = String(label || "").trim();
+          if (nameRaw) {
+            const exists = (state.ingredients || []).some((x) => String(x?.name || "").trim().toLowerCase() === nameRaw.toLowerCase());
+            if (!exists) {
+              const newIng = { id: uid(), name: nameRaw, barcode: "", amount: 1, unit: "Stück", price: 0, shelfLifeDays: 0, nutriments: null, categoryId: null, unlisted: false };
+              if (!Array.isArray(state.ingredients)) state.ingredients = [];
+              state.ingredients.push(newIng);
+            }
+          }
+        } catch {}
+
+        // Bon-Position als erledigt markieren
+        try {
+          cur.skippedAt = new Date().toISOString();
+          cur.skipReason = "skipped";
+          r.updatedAt = new Date().toISOString();
+          persist();
+        } catch {}
+
+        resultEl.innerHTML = "";
+        msgEl.textContent = "Übersprungen.";
+        renderHeader();
+        resumeScan();
+        return;
+      }
+
       if (a === "pickItem") {
         const itemId = btn.getAttribute("data-item-id");
         const ingId = btn.getAttribute("data-ingredient-id");
@@ -2195,11 +2241,6 @@ Die Zutat wird aber in „Zutaten“ angelegt (minimal), damit du sie später sa
     });
 
     renderHeader();
-    startCamera();
-  }
-
-// initial
-    render();
     startCamera();
   }
 
