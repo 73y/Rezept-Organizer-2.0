@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(git add -A)",
-      "Bash(git commit -m \"checkpoint: before Generische Zutaten feature\")"
+      "Bash(git commit -m \"checkpoint: before Generische Zutaten feature\")",
+      "Bash(git add js/storage.js)",
+      "Bash(git commit -m \"wip: baseIngredients data model + normalization in storage.js\")",
+      "Bash(git add js/baseIngredients.js)",
+      "Bash(git commit -m \"wip: new baseIngredients.js file \\(helpers + picker modal\\)\")",
+      "Bash(git add js/ingredients.js)",
+      "Bash(git commit -m \"wip: ingredients.js wiring for baseIngredientId field + picker\")",
+      "Bash(git add js/storage.js js/baseIngredients.js js/ingredients.js index.html)",
+      "Bash(git commit -m \"wip: index.html adds baseIngredients.js to script loader\")",
+      "Bash(git commit:*)",
+      "Bash(git add js/appMeta.js)"
     ]
   }
 }
