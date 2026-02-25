@@ -2647,6 +2647,9 @@ if (a === "openReceipt") {
     // packs-only + duplicates mergen (planMin bleibt erhalten; max)
     const merged = new Map();
 
+    // Text-Einträge (Generische Zutaten ohne konkretes Produkt) separat aufheben
+    const _textItems = (state.shopping || []).filter(it => it?.type === "text");
+
     for (const it of state.shopping || []) {
       if (!it || typeof it !== "object") continue;
       if (!it.ingredientId) continue;
@@ -2687,10 +2690,12 @@ if (a === "openReceipt") {
       }
     }
 
-    state.shopping = Array.from(merged.values());
+    state.shopping = [...Array.from(merged.values()), ..._textItems];
 
     // Wenn etwas nicht mehr auf der Liste steht, aus checked entfernen
-    const existingIds = new Set(state.shopping.map((x) => String(x.ingredientId)));
+    const existingIds = new Set(
+      state.shopping.filter(x => !x.type).map((x) => String(x.ingredientId))
+    );
     for (const k of Object.keys(state.shoppingSession.checked || {})) {
       if (!existingIds.has(String(k))) {
         delete state.shoppingSession.checked[k];
@@ -3291,6 +3296,23 @@ if (a === "openReceipt") {
           renderShoppingView(container, state, persist);
           return;
         }
+
+        if (action === "textToggle") {
+          const itemId = btn.getAttribute("data-item-id") || "";
+          const it = (state.shopping || []).find(x => x.id === itemId);
+          if (it) it.done = !it.done;
+          persist();
+          renderShoppingView(container, state, persist);
+          return;
+        }
+
+        if (action === "textRemove") {
+          const itemId = btn.getAttribute("data-item-id") || "";
+          state.shopping = (state.shopping || []).filter(x => x.id !== itemId);
+          persist();
+          renderShoppingView(container, state, persist);
+          return;
+        }
       });
     }
 
@@ -3424,6 +3446,17 @@ if (a === "openReceipt") {
       </div>
     `;
 
+    const textItems = (state.shopping || []).filter(it => it?.type === "text");
+    const textRows = textItems.map(it => `
+      <div style="display:flex; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--border);">
+        <button data-action="textToggle" data-item-id="${esc(it.id)}"
+          style="min-width:36px; font-size:18px; line-height:1;"
+          title="${it.done ? "Als nicht erledigt markieren" : "Abhaken"}">${it.done ? "✓" : "○"}</button>
+        <span style="flex:1; ${it.done ? "text-decoration:line-through; opacity:0.55;" : ""}">${esc(it.label)}</span>
+        <button class="danger" data-action="textRemove" data-item-id="${esc(it.id)}">Entfernen</button>
+      </div>
+    `).join("");
+
     container.innerHTML = `
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
@@ -3438,6 +3471,13 @@ if (a === "openReceipt") {
         <div style="margin-top:10px;">
           ${groups.length ? rows : `<div class="small" style="padding:10px 0;">Noch nichts auf der Einkaufsliste.</div>`}
         </div>
+
+        ${textItems.length ? `
+          <div style="margin-top:12px;">
+            <div class="small muted2" style="margin-bottom:4px;">Generische Zutaten (Rezept-Notizen)</div>
+            ${textRows}
+          </div>
+        ` : ""}
       </div>
       ${toast}
     `;
