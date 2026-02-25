@@ -240,6 +240,23 @@ function ensureStateShape(state) {
     }
   }
 
+  // ✅ Rezept-Items: ingredientId → baseIngredientId migrieren (wenn Zutat verknüpft ist)
+  const _biByIngId = new Map();
+  for (const ing of next.ingredients) {
+    if (ing.baseIngredientId) _biByIngId.set(String(ing.id), String(ing.baseIngredientId));
+  }
+  for (const r of (next.recipes || [])) {
+    for (const it of (r.items || [])) {
+      if (!it) continue;
+      if (!it.baseIngredientId && it.ingredientId) {
+        const mapped = _biByIngId.get(String(it.ingredientId));
+        if (mapped) it.baseIngredientId = mapped;
+      }
+      if (it.baseIngredientId) it.baseIngredientId = String(it.baseIngredientId).trim() || null;
+      if (it.baseIngredientId && !_validBaseIds.has(it.baseIngredientId)) it.baseIngredientId = null;
+    }
+  }
+
   next.recipes = Array.isArray(next.recipes) ? next.recipes : [];
 
   next.plannedRecipes = Array.isArray(next.plannedRecipes) ? next.plannedRecipes : [];
