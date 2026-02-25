@@ -574,9 +574,9 @@
             <p class="small" style="margin:0;">Aktionen pro Zutat über „⋯“. Hinzufügen über „+“.</p>
           </div>
 
-          <div style="text-align:right;">
-            <div class="small muted2">Gesamtwert</div>
-            <div style="font-weight:750; font-size:18px; line-height:1.1;">${esc(euro(inventoryTotalCost))}</div>
+          <div class="small muted2" style="text-align:right;">
+            Gesamtwert<br>
+            <span style="font-size:16px; font-weight:700; color:var(--text); line-height:1.3;">${esc(euro(inventoryTotalCost))}</span>
           </div>
         </div>
       </div>
