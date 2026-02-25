@@ -116,7 +116,10 @@ function defaultState() {
     receipts: [],
 
     // Cache für Barcode->Produkt (Open Food Facts Autofill)
-    barcodeLookupCache: {}
+    barcodeLookupCache: {},
+
+    // Generische Zutaten: übergeordnete Konzept-Ebene über konkreten Produkten
+    baseIngredients: [] // [{id, name}]
   };
 }
 
@@ -150,7 +153,7 @@ function migrateIngredient(old) {
   // Neues Format schon vorhanden?
   if (old && typeof old === "object" && "amount" in old && "unit" in old && "price" in old) {
     const barcode = (String(old.barcode ?? "").trim()).replace(/\s+/g, "").replace(/[^0-9]/g, "");
-    return { ...old, barcode: barcode || "", nutriments: sanitizeNutriments(old.nutriments) };
+    return { ...old, barcode: barcode || "", nutriments: sanitizeNutriments(old.nutriments), baseIngredientId: old.baseIngredientId ? String(old.baseIngredientId) : null };
   }
 
   const id = old?.id ?? (window.crypto?.randomUUID ? crypto.randomUUID() : "id_" + Date.now());
@@ -163,7 +166,7 @@ function migrateIngredient(old) {
 
   const barcode = (String(old?.barcode ?? "").trim()).replace(/\s+/g, "").replace(/[^0-9]/g, "");
 
-  return { id, name, barcode, amount, unit, price, shelfLifeDays, nutriments: sanitizeNutriments(old?.nutriments) };
+  return { id, name, barcode, amount, unit, price, shelfLifeDays, nutriments: sanitizeNutriments(old?.nutriments), baseIngredientId: old?.baseIngredientId ? String(old.baseIngredientId) : null };
 }
 
 
@@ -220,6 +223,23 @@ function ensureStateShape(state) {
   };
 
   next.ingredients = Array.isArray(next.ingredients) ? next.ingredients.map(migrateIngredient) : [];
+
+  // ✅ baseIngredients normalisieren: ungültige Einträge rauswerfen
+  next.baseIngredients = Array.isArray(next.baseIngredients)
+    ? next.baseIngredients
+        .filter(x => x && typeof x === "object" && x.id && typeof x.id === "string" && x.name && typeof x.name === "string")
+        .map(x => ({ id: String(x.id).trim(), name: String(x.name).trim() }))
+        .filter(x => x.id && x.name)
+    : [];
+
+  // ✅ Verwaiste baseIngredientId-Links auf Zutaten bereinigen
+  const _validBaseIds = new Set(next.baseIngredients.map(x => x.id));
+  for (const ing of next.ingredients) {
+    if (ing.baseIngredientId && !_validBaseIds.has(ing.baseIngredientId)) {
+      ing.baseIngredientId = null;
+    }
+  }
+
   next.recipes = Array.isArray(next.recipes) ? next.recipes : [];
 
   next.plannedRecipes = Array.isArray(next.plannedRecipes) ? next.plannedRecipes : [];
