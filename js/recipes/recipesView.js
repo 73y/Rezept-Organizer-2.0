@@ -336,6 +336,20 @@
       </div>
 
       <div class="small" id="r-msg" style="margin-top:10px; color: rgba(239,68,68,0.9);"></div>
+
+      <datalist id="r-unit-presets">
+        <option value="g">
+        <option value="kg">
+        <option value="ml">
+        <option value="L">
+        <option value="Stück">
+        <option value="EL">
+        <option value="TL">
+        <option value="Prise">
+        <option value="Bund">
+        <option value="Dose">
+        <option value="Pkg">
+      </datalist>
     `;
 
     const { modal, close } = M().buildModal({
@@ -446,36 +460,39 @@
 
       const displayName = baseIngredientId
         ? (window.baseIngredients?.nameById(state, baseIngredientId) || fallbackName || baseIngredientId)
-        : (fallbackName || "– wählen –");
+        : (fallbackName || "Zutat wählen…");
 
       row.innerHTML = `
-        <div style="display:flex; gap:4px; align-items:center; min-width:0;">
-          <span class="ri-label" style="flex:1; min-width:80px; padding:5px 8px; border:1px solid var(--border);
-            border-radius:8px; background:var(--input); overflow:hidden; text-overflow:ellipsis;
-            white-space:nowrap; cursor:pointer;">${esc(displayName)}</span>
-          <button type="button" class="info btn-mini" data-action="pickBaseIng">…</button>
+        <div data-role="ingredient" title="Zutat wählen" style="cursor:pointer; padding:6px 10px;
+          border:1px solid var(--border); border-radius:8px; background:var(--input);
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-height:36px;
+          display:flex; align-items:center; color:${baseIngredientId ? "inherit" : "var(--muted2, #888)"};">
+          ${esc(displayName)}
         </div>
         <input data-role="amt" type="number" min="0" step="0.01" placeholder="0" value="${esc(amount)}" />
-        <input data-role="unit" placeholder="g / Stück…" value="${esc(unit)}" />
-        <button type="button" class="danger btn-mini" data-action="rowRemove">×</button>
+        <input data-role="unit" list="r-unit-presets" placeholder="g / Stück…" value="${esc(unit)}" />
+        <button type="button" class="danger btn-mini" data-action="rowRemove"
+          style="min-width:0; width:36px; height:36px; padding:0; flex-shrink:0;">×</button>
       `;
 
       const amtEl = row.querySelector("input[data-role=amt]");
+      const ingCell = row.querySelector("[data-role=ingredient]");
 
-      row.querySelector("button[data-action=pickBaseIng]").addEventListener("click", () => {
+      function openPicker() {
         window.baseIngredients.openPickerModal(state, persist, "", row.dataset.baseId || null, (id) => {
           row.dataset.baseId = id || "";
-          const label = row.querySelector(".ri-label");
-          if (label) label.textContent = id
-            ? (window.baseIngredients.nameById(state, id) || id)
-            : "– wählen –";
+          if (ingCell) {
+            ingCell.textContent = id
+              ? (window.baseIngredients.nameById(state, id) || id)
+              : "Zutat wählen…";
+            ingCell.style.color = id ? "inherit" : "var(--muted2, #888)";
+          }
           recomputeCost();
         });
-      });
+      }
 
-      amtEl.addEventListener("input", () => {
-        recomputeCost();
-      });
+      ingCell.addEventListener("click", openPicker);
+      amtEl.addEventListener("input", () => recomputeCost());
 
       // remove handler
       row.querySelector("button[data-action=rowRemove]").addEventListener("click", () => {
@@ -492,7 +509,9 @@
     const initItems = (recipeOrNull?.items || []).slice();
     if (initItems.length) {
       for (const it of initItems) {
-        const fallbackName = it.baseIngredientId ? "" : (L().getIng(state, it.ingredientId)?.name || "");
+        const fallbackName = it.baseIngredientId
+          ? ""
+          : (L().getIng(state, it.ingredientId)?.name || "(Zutat nicht gefunden)");
         addRow(it.baseIngredientId || null, it.amount, it.unit || "", fallbackName);
       }
     } else {
