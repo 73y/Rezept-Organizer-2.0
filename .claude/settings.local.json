@@ -12,7 +12,10 @@
       "Bash(git add js/storage.js js/baseIngredients.js js/ingredients.js index.html)",
       "Bash(git commit -m \"wip: index.html adds baseIngredients.js to script loader\")",
       "Bash(git commit:*)",
-      "Bash(git add js/appMeta.js)"
+      "Bash(git add js/appMeta.js)",
+      "Bash(git add js/recipes/recipesModals.js)",
+      "Bash(git add js/shopping.js)",
+      "Bash(git add js/storage.js js/recipes/recipesView.js js/recipes/recipesModals.js js/shopping.js js/appMeta.js)"
     ]
   }
 }
