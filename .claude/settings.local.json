@@ -15,7 +15,10 @@
       "Bash(git add js/appMeta.js)",
       "Bash(git add js/recipes/recipesModals.js)",
       "Bash(git add js/shopping.js)",
-      "Bash(git add js/storage.js js/recipes/recipesView.js js/recipes/recipesModals.js js/shopping.js js/appMeta.js)"
+      "Bash(git add js/storage.js js/recipes/recipesView.js js/recipes/recipesModals.js js/shopping.js js/appMeta.js)",
+      "Bash(git add js/audit.js)",
+      "Bash(git add js/recipes/recipesView.js)",
+      "Bash(git add js/audit.js js/recipes/recipesView.js js/appMeta.js)"
     ]
   }
 }
