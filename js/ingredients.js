@@ -369,6 +369,9 @@ modal.addEventListener("click", (e) => {
     return { overlay, modal, close };
   }
 
+  // Für js/baseIngredients.js (lädt vor dieser Datei, ruft aber buildModal erst zur Laufzeit auf)
+  window.buildModal = buildModal;
+
   function setFlash(text) {
     ui.flash = text;
     if (ui.flashTimeout) clearTimeout(ui.flashTimeout);
@@ -953,6 +956,7 @@ modal.addEventListener("click", (e) => {
 
     const catSel = String(ingOrNull?.categoryId || "");
     const unlistedDefault = !!ingOrNull?.unlisted;
+    let currentBaseIngId = ingOrNull?.baseIngredientId ?? null;
 
 
     const baseDate = (() => {
@@ -1019,6 +1023,15 @@ modal.addEventListener("click", (e) => {
             Ungelistet
           </label>
           <div class="small muted2" style="margin-top:6px;">Ungelistete Zutaten sind normal versteckt, erscheinen aber in Rezepten.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <label class="small">Generische Zutat</label><br/>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:4px; flex-wrap:wrap;">
+          <span id="i-base-ing-label" style="flex:1; min-width:120px; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--input);">${window.baseIngredients?.nameById(state, ingOrNull?.baseIngredientId) || "Keine"}</span>
+          <button type="button" class="info" data-action="pickBaseIng">Auswählen…</button>
+          <button type="button" class="warn" data-action="clearBaseIng" style="${ingOrNull?.baseIngredientId ? "" : "display:none;"}">✕</button>
         </div>
       </div>
 
@@ -1158,6 +1171,7 @@ modal.addEventListener("click", (e) => {
 
           it.categoryId = categoryId;
           it.unlisted = unlisted;
+          it.baseIngredientId = currentBaseIngId;
 
           persist();
           const saved = it;
@@ -1179,7 +1193,8 @@ modal.addEventListener("click", (e) => {
           nutriments: nutriments || null,
 
           categoryId,
-          unlisted
+          unlisted,
+          baseIngredientId: currentBaseIngId
         };
 
         state.ingredients.push(newIng);
@@ -1238,6 +1253,29 @@ modal.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-action]");
       if (!btn) return;
       const a = btn.getAttribute("data-action");
+
+      // Generische Zutat auswählen
+      if (a === "pickBaseIng") {
+        const ingNameNow = modal.querySelector("#i-name")?.value.trim() || "";
+        window.baseIngredients?.openPickerModal(state, persist, ingNameNow, currentBaseIngId, (id) => {
+          currentBaseIngId = id;
+          const label = modal.querySelector("#i-base-ing-label");
+          const clearBtn = modal.querySelector("[data-action='clearBaseIng']");
+          if (label) label.textContent = id ? (window.baseIngredients.nameById(state, id) || id) : "Keine";
+          if (clearBtn) clearBtn.style.display = id ? "" : "none";
+        });
+        return;
+      }
+
+      // Generische Zutat leeren
+      if (a === "clearBaseIng") {
+        currentBaseIngId = null;
+        const label = modal.querySelector("#i-base-ing-label");
+        const clearBtn = modal.querySelector("[data-action='clearBaseIng']");
+        if (label) label.textContent = "Keine";
+        if (clearBtn) clearBtn.style.display = "none";
+        return;
+      }
 
       // Barcode entfernen ohne Tastatur
       if (a === "clearBarcode") {
