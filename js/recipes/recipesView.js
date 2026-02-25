@@ -43,14 +43,15 @@
   }
 
   function recipeItemsSummary(state, recipe) {
-    const items = (recipe.items || []).filter((x) => x.ingredientId);
+    const items = (recipe.items || []).filter((x) => x.baseIngredientId || x.ingredientId);
     if (!items.length) return "Keine Zutaten";
 
     const parts = items.slice(0, 3).map((it) => {
-      const ing = L().getIng(state, it.ingredientId);
-      const name = ing ? ing.name : "(Unbekannt)";
+      const name = it.baseIngredientId
+        ? (window.baseIngredients?.nameById(state, it.baseIngredientId) || "(Unbekannt)")
+        : (L().getIng(state, it.ingredientId)?.name || "(Unbekannt)");
       const amt = Number(it.amount) || 0;
-      const unit = ing ? ing.unit : (it.unit || "");
+      const unit = it.unit || (L().getIng(state, it.ingredientId)?.unit || "");
       return `${name} (${fmt(amt)} ${unit})`;
     });
 
@@ -358,12 +359,12 @@
         const rows = Array.from(m.querySelectorAll(".recipe-row"));
         const items = rows
           .map((row) => {
-            const ingredientId = row.querySelector("select")?.value || "";
-            const ing = L().getIng(state, ingredientId);
+            const baseIngredientId = row.dataset.baseId || null;
             const amount = toNum(row.querySelector("input[data-role=amt]")?.value);
-            if (!ingredientId || !ing) return null;
+            const unit = (row.querySelector("input[data-role=unit]")?.value || "").trim();
+            if (!baseIngredientId) return null;
             if (!Number.isFinite(amount) || amount <= 0) return null;
-            return { ingredientId, amount: Number(amount.toFixed(4)), unit: ing.unit };
+            return { baseIngredientId, amount: Number(amount.toFixed(4)), unit };
           })
           .filter(Boolean);
 
@@ -415,12 +416,11 @@
       const rows = Array.from(modal.querySelectorAll(".recipe-row"));
       const tmpItems = rows
         .map((row) => {
-          const ingredientId = row.querySelector("select")?.value || "";
-          const ing = L().getIng(state, ingredientId);
+          const baseIngredientId = row.dataset.baseId || null;
           const amount = toNum(row.querySelector("input[data-role=amt]")?.value);
-          if (!ingredientId || !ing) return null;
+          if (!baseIngredientId) return null;
           if (!Number.isFinite(amount) || amount <= 0) return null;
-          return { ingredientId, amount: Number(amount.toFixed(4)), unit: ing.unit };
+          return { baseIngredientId, amount };
         })
         .filter(Boolean);
 
@@ -431,41 +431,51 @@
 
       const tmpRecipe = { items: tmpItems, portions: Math.max(1, Math.round(toNum(modal.querySelector("#r-portions")?.value) || 1)) };
       const total = L().recipeCost(state, tmpRecipe);
+      if (!total) {
+        costEl.textContent = "—";
+        return;
+      }
       const per = tmpRecipe.portions > 0 ? total / tmpRecipe.portions : total;
       costEl.textContent = `${euro(total)} (≈ ${euro(per)} / Portion)`;
     }
 
-    function addRow(ingredientId = "", amount = "") {
+    function addRow(baseIngredientId = null, amount = "", unit = "", fallbackName = "") {
       const row = document.createElement("div");
       row.className = "recipe-row";
+      row.dataset.baseId = baseIngredientId || "";
 
-      const options = `<option value="">– wählen –</option>${ingredientOptionsHTML(state, ingredientId)}`;
+      const displayName = baseIngredientId
+        ? (window.baseIngredients?.nameById(state, baseIngredientId) || fallbackName || baseIngredientId)
+        : (fallbackName || "– wählen –");
 
       row.innerHTML = `
-        <select>${options}</select>
+        <div style="display:flex; gap:4px; align-items:center; min-width:0;">
+          <span class="ri-label" style="flex:1; min-width:80px; padding:5px 8px; border:1px solid var(--border);
+            border-radius:8px; background:var(--input); overflow:hidden; text-overflow:ellipsis;
+            white-space:nowrap; cursor:pointer;">${esc(displayName)}</span>
+          <button type="button" class="info btn-mini" data-action="pickBaseIng">…</button>
+        </div>
         <input data-role="amt" type="number" min="0" step="0.01" placeholder="0" value="${esc(amount)}" />
-        <input data-role="unit" placeholder="" readonly />
+        <input data-role="unit" placeholder="g / Stück…" value="${esc(unit)}" />
         <button type="button" class="danger btn-mini" data-action="rowRemove">×</button>
       `;
 
-      const sel = row.querySelector("select");
       const amtEl = row.querySelector("input[data-role=amt]");
-      const unitEl = row.querySelector("input[data-role=unit]");
 
-      function updateUnit() {
-        const ing = L().getIng(state, sel.value);
-        unitEl.value = ing ? ing.unit : "";
-      }
-
-      sel.addEventListener("change", () => {
-        updateUnit();
-        recomputeCost();
+      row.querySelector("button[data-action=pickBaseIng]").addEventListener("click", () => {
+        window.baseIngredients.openPickerModal(state, persist, "", row.dataset.baseId || null, (id) => {
+          row.dataset.baseId = id || "";
+          const label = row.querySelector(".ri-label");
+          if (label) label.textContent = id
+            ? (window.baseIngredients.nameById(state, id) || id)
+            : "– wählen –";
+          recomputeCost();
+        });
       });
 
       amtEl.addEventListener("input", () => {
         recomputeCost();
       });
-
 
       // remove handler
       row.querySelector("button[data-action=rowRemove]").addEventListener("click", () => {
@@ -474,7 +484,6 @@
       });
 
       rowsWrap.appendChild(row);
-      updateUnit();
       recomputeCost();
       amtEl.focus();
     }
@@ -483,7 +492,8 @@
     const initItems = (recipeOrNull?.items || []).slice();
     if (initItems.length) {
       for (const it of initItems) {
-        addRow(it.ingredientId, it.amount);
+        const fallbackName = it.baseIngredientId ? "" : (L().getIng(state, it.ingredientId)?.name || "");
+        addRow(it.baseIngredientId || null, it.amount, it.unit || "", fallbackName);
       }
     } else {
       addRow();
