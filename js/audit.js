@@ -29,7 +29,11 @@
     // shopping
     if (!Array.isArray(state.shopping)) state.shopping = [];
     const beforeShopping = state.shopping.length;
-    state.shopping = state.shopping.filter((x) => x && x.ingredientId && ingIds.has(x.ingredientId));
+    state.shopping = state.shopping.filter((x) => {
+      if (!x) return false;
+      if (x.type === "text") return true; // Text-Einträge (Generische Zutaten) behalten
+      return x.ingredientId && ingIds.has(x.ingredientId);
+    });
     report.removed.shopping += beforeShopping - state.shopping.length;
 
     // pantry
@@ -43,7 +47,11 @@
       if (!isObj(r)) continue;
       if (!Array.isArray(r.items)) r.items = [];
       const b = r.items.length;
-      r.items = r.items.filter((it) => it && it.ingredientId && ingIds.has(it.ingredientId));
+      r.items = r.items.filter((it) => {
+        if (!it) return false;
+        if (it.baseIngredientId) return true; // Items mit Generischer Zutat behalten
+        return it.ingredientId && ingIds.has(it.ingredientId); // Legacy: konkretes Produkt nötig
+      });
       report.removed.recipeItems += b - r.items.length;
     }
 
