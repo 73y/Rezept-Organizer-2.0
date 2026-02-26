@@ -2,7 +2,10 @@
   // UI-only state (nicht im LocalStorage): welche Aktionen-Menüs offen sind
   const ui = {
     openIngredientMenus: new Set(),
-    _toggleBound: false
+    _toggleBound: false,
+    // 0.3.0 Vorrat-Kategoriefilter
+    filterCat: "all",   // "all" | "none" | <categoryId>
+    showAllCats: false
   };
   const esc = (s) => (window.utils?.esc ? window.utils.esc(s) : String(s ?? ""));
   const toNum = (v) => (window.utils?.toNumber ? window.utils.toNumber(v) : (window.models?.toNumber ? window.models.toNumber(v) : Number(v)));
@@ -416,12 +419,48 @@
 
     const inventoryTotalCost = groups.reduce((s, g) => s + (Number(g.totalCost) || 0), 0);
 
+    // 0.3.0 Kategoriefilter
+    const cats = (Array.isArray(state.ingredientCategories) ? state.ingredientCategories : [])
+      .slice().sort((a, b) => (a.name || "").localeCompare(b.name || "", "de"));
+    const validCatIds = new Set(cats.map((c) => String(c.id)));
+    if (ui.filterCat !== "all" && ui.filterCat !== "none" && !validCatIds.has(String(ui.filterCat))) ui.filterCat = "all";
+
+    function getCategoryIdForGroup(ingredientId) {
+      return getIng(state, ingredientId)?.categoryId || null;
+    }
+
+    let displayGroups = groups;
+    if (ui.filterCat === "none") {
+      displayGroups = groups.filter((g) => !getCategoryIdForGroup(g.ingredientId));
+    } else if (ui.filterCat !== "all") {
+      displayGroups = groups.filter((g) => String(getCategoryIdForGroup(g.ingredientId) || "") === String(ui.filterCat));
+    }
+
+    const chip = (label, catId, active) =>
+      `<button type="button" class="chipbtn ${active ? "active" : ""}" data-action="filterCat" data-cat="${esc(catId)}">${esc(label)}</button>`;
+    const favCats = cats.filter((c) => c.favorite);
+    const nonFavCats = cats.filter((c) => !c.favorite);
+    const MAX_VISIBLE_CATS = 6;
+    const hiddenCats = favCats.length > 0 ? nonFavCats : cats.slice(MAX_VISIBLE_CATS);
+    if (!ui.showAllCats && hiddenCats.some((c) => String(c.id) === String(ui.filterCat))) ui.showAllCats = true;
+    const visibleCats = favCats.length > 0
+      ? (ui.showAllCats ? cats : favCats)
+      : (ui.showAllCats ? cats : cats.slice(0, MAX_VISIBLE_CATS));
+    const chipsHTML = cats.length > 0 ? [
+      chip("Alle", "all", ui.filterCat === "all"),
+      chip("Ohne Kategorie", "none", ui.filterCat === "none"),
+      ...visibleCats.map((c) => chip(c.name, c.id, String(ui.filterCat) === String(c.id))),
+      ...(hiddenCats.length > 0
+        ? [`<button type="button" class="chipbtn" data-action="toggleAllCats">${ui.showAllCats ? "Weniger ▲" : `+${hiddenCats.length} mehr ▼`}</button>`]
+        : [])
+    ].join("") : "";
+
     const ings = (state.ingredients || [])
       .slice()
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "de"));
 
-    const listHtml = groups.length
-      ? groups
+    const listHtml = displayGroups.length
+      ? displayGroups
           .map((g) => {
             const cls = expiryClass(g.daysLeft);
             const pill = expiryPillText(g.daysLeft);
@@ -551,7 +590,9 @@
             `;
           })
           .join("")
-      : `<p class="small">Noch leer. Einkauf abhaken → landet hier.</p>`;
+      : (groups.length > 0
+          ? `<p class="small">Keine Einträge für diese Kategorie.</p>`
+          : `<p class="small">Noch leer. Einkauf abhaken → landet hier.</p>`);
 
 
     const toast = undoSnapshot
@@ -566,17 +607,20 @@
       `
       : "";
 
+    const chipsBar = chipsHTML ? '<div class="chipbar" style="margin-top:10px;">' + chipsHTML + '</div>' : '';
+
     container.innerHTML = `
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
           <div>
             <h2 style="margin:0 0 6px 0;">Vorrat</h2>
-            <p class="small" style="margin:0;">Aktionen pro Zutat über „⋯“. Hinzufügen über „+“.</p>
+            <p class="small" style="margin:0;">Aktionen pro Zutat über „⋯". Hinzufügen über „+".</p>
+            ${chipsBar}
           </div>
 
-          <div class="small muted2" style="text-align:right;">
-            Gesamtwert<br>
-            <span style="font-size:16px; font-weight:700; color:var(--text); line-height:1.3;">${esc(euro(inventoryTotalCost))}</span>
+          <div style="text-align:right;">
+            <div class="small muted2">Gesamtwert</div>
+            <div style="font-weight:750; font-size:18px; line-height:1.1;">${esc(euro(inventoryTotalCost))}</div>
           </div>
         </div>
       </div>
@@ -636,6 +680,18 @@
       }
       if (action === "toastClose") {
         clearUndo();
+        window.app.navigate("inventory");
+        return;
+      }
+
+      // 0.3.0 Kategorie-Filter
+      if (action === "filterCat") {
+        ui.filterCat = btn.getAttribute("data-cat") || "all";
+        window.app.navigate("inventory");
+        return;
+      }
+      if (action === "toggleAllCats") {
+        ui.showAllCats = !ui.showAllCats;
         window.app.navigate("inventory");
         return;
       }

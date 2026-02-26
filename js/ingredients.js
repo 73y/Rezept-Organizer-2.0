@@ -305,7 +305,8 @@
 
     // 0.3.0 Filter
     filterCat: "all", // "all" | "none" | <categoryId>
-    showUnlisted: false
+    showUnlisted: false,
+    showAllCats: false
   };
 
   function buildModal({
@@ -820,13 +821,14 @@ modal.addEventListener("click", (e) => {
     const rows = cats
       .map(
         (c) => `
-        <div class="row" style="margin:8px 0; align-items:center;">
-          <div style="min-width:220px; flex:1;">
-            <input data-role="catName" data-id="${esc(c.id)}" value="${esc(c.name)}" />
-          </div>
-          <div style="flex:0 0 auto;">
-            <button type="button" class="danger" data-action="catDel" data-id="${esc(c.id)}">Löschen</button>
-          </div>
+        <div style="display:grid; grid-template-columns:1fr 32px 32px; gap:4px; align-items:center; margin:4px 0;">
+          <input style="width:100%; min-width:0; font-size:16px;" data-role="catName" data-id="${esc(c.id)}" value="${esc(c.name)}" />
+          <button type="button" data-action="catFav" data-id="${esc(c.id)}" data-fav="${c.favorite ? "true" : "false"}"
+            title="${c.favorite ? "Favorit entfernen" : "Als Favorit markieren"}"
+            style="width:32px; height:32px; min-width:32px; display:flex; align-items:center; justify-content:center; padding:0; background:none; border:none; font-size:16px; cursor:pointer; color:${c.favorite ? "#f59e0b" : "var(--muted)"}; opacity:${c.favorite ? "1" : "0.55"};"
+          >${c.favorite ? "★" : "☆"}</button>
+          <button type="button" data-action="catDel" data-id="${esc(c.id)}" aria-label="Löschen" title="Löschen"
+            style="width:32px; height:32px; min-width:32px; display:flex; align-items:center; justify-content:center; padding:0; border-radius:6px; background:rgba(239,68,68,0.14); border:1px solid rgba(239,68,68,0.4); color:#ef4444; font-size:14px; cursor:pointer;">✕</button>
         </div>
       `
       )
@@ -836,9 +838,9 @@ modal.addEventListener("click", (e) => {
       <div class="small muted2">Kategorien für Zutaten. Beim Löschen wird die Kategorie bei betroffenen Zutaten entfernt.</div>
       <div style="margin-top:12px;">
         <label class="small">Neue Kategorie</label><br/>
-        <div class="row" style="align-items:center;">
-          <div style="flex:1; min-width:220px;"><input id="cat-new" placeholder="z. B. Gemüse" /></div>
-          <div style="flex:0 0 auto;"><button type="button" class="info" data-action="catAdd">Hinzufügen</button></div>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap; margin-top:4px;">
+          <input id="cat-new" style="flex:1; min-width:0;" placeholder="z. B. Gemüse" />
+          <button type="button" class="info" style="flex:0 0 auto;" data-action="catAdd">Hinzufügen</button>
         </div>
       </div>
       <div style="margin-top:12px;">
@@ -872,7 +874,9 @@ modal.addEventListener("click", (e) => {
             return;
           }
           used.add(key);
-          next.push({ id, name });
+          const favBtn = m.querySelector(`button[data-action="catFav"][data-id="${id}"]`);
+          const favorite = favBtn?.getAttribute("data-fav") === "true";
+          next.push({ id, name, favorite });
         }
 
         next.sort((a, b) => (a.name || "").localeCompare(b.name || "", "de"));
@@ -898,17 +902,27 @@ modal.addEventListener("click", (e) => {
         cats2
           .map(
             (c) => `
-            <div class="row" style="margin:8px 0; align-items:center;">
-              <div style="min-width:220px; flex:1;">
-                <input data-role="catName" data-id="${esc(c.id)}" value="${esc(c.name)}" />
-              </div>
-              <div style="flex:0 0 auto;">
-                <button type="button" class="danger" data-action="catDel" data-id="${esc(c.id)}">Löschen</button>
-              </div>
+            <div style="display:grid; grid-template-columns:1fr 32px 32px; gap:4px; align-items:center; margin:4px 0;">
+              <input style="width:100%; min-width:0; font-size:16px;" data-role="catName" data-id="${esc(c.id)}" value="${esc(c.name)}" />
+              <button type="button" data-action="catFav" data-id="${esc(c.id)}" data-fav="${c.favorite ? "true" : "false"}"
+                title="${c.favorite ? "Favorit entfernen" : "Als Favorit markieren"}"
+                style="width:32px; height:32px; min-width:32px; display:flex; align-items:center; justify-content:center; padding:0; background:none; border:none; font-size:16px; cursor:pointer; color:${c.favorite ? "#f59e0b" : "var(--muted)"}; opacity:${c.favorite ? "1" : "0.55"};"
+              >${c.favorite ? "★" : "☆"}</button>
+              <button type="button" data-action="catDel" data-id="${esc(c.id)}" aria-label="Löschen" title="Löschen"
+                style="width:32px; height:32px; min-width:32px; display:flex; align-items:center; justify-content:center; padding:0; border-radius:6px; background:rgba(239,68,68,0.14); border:1px solid rgba(239,68,68,0.4); color:#ef4444; font-size:14px; cursor:pointer;">✕</button>
             </div>
           `
           )
           .join("") || `<div class="small">Noch keine Kategorien.</div>`;
+    }
+
+    function syncFavsToState() {
+      for (const fb of modal.querySelectorAll('button[data-action="catFav"]')) {
+        const id = String(fb.getAttribute("data-id") || "").trim();
+        const fav = fb.getAttribute("data-fav") === "true";
+        const cat = (state.ingredientCategories || []).find((c) => String(c.id) === id);
+        if (cat) cat.favorite = fav;
+      }
     }
 
     modal.addEventListener("click", (e) => {
@@ -917,6 +931,16 @@ modal.addEventListener("click", (e) => {
       const a = btn.getAttribute("data-action");
       const msg = modal.querySelector("#cat-msg");
       if (msg) msg.textContent = "";
+
+      if (a === "catFav") {
+        const isFav = btn.getAttribute("data-fav") === "true";
+        const newFav = !isFav;
+        btn.setAttribute("data-fav", newFav ? "true" : "false");
+        btn.setAttribute("title", newFav ? "Favorit entfernen" : "Als Favorit markieren");
+        btn.textContent = newFav ? "★" : "☆";
+        btn.style.color = newFav ? "#f59e0b" : "inherit";
+        btn.style.opacity = newFav ? "1" : "0.4";
+      }
 
       if (a === "catAdd") {
         const inp = modal.querySelector("#cat-new");
@@ -927,12 +951,14 @@ modal.addEventListener("click", (e) => {
           if (msg) msg.textContent = "Kategorie existiert schon.";
           return;
         }
-        state.ingredientCategories.push({ id: uid(), name });
+        syncFavsToState();
+        state.ingredientCategories.push({ id: uid(), name, favorite: false });
         if (inp) inp.value = "";
         rebuildList();
       }
 
       if (a === "catDel") {
+        syncFavsToState();
         const id = btn.getAttribute("data-id") || "";
         state.ingredientCategories = (state.ingredientCategories || []).filter((c) => String(c.id) !== String(id));
         rebuildList();
@@ -1324,7 +1350,7 @@ modal.addEventListener("click", (e) => {
             }
 
             const id = uid();
-            state.ingredientCategories.push({ id, name });
+            state.ingredientCategories.push({ id, name, favorite: false });
             state.ingredientCategories.sort((a, b) => (a.name || "").localeCompare(b.name || "", "de"));
 
             persist();
@@ -1433,10 +1459,21 @@ window.renderIngredientsView = function (container, state, persist) {
 
     const chip = (label, catId, active) =>
       `<button type="button" class="chipbtn ${active ? "active" : ""}" data-action="filterCat" data-cat="${esc(catId)}">${esc(label)}</button>`;
+    const favCats = cats.filter((c) => c.favorite);
+    const nonFavCats = cats.filter((c) => !c.favorite);
+    const MAX_VISIBLE_CATS = 6;
+    const hiddenCats = favCats.length > 0 ? nonFavCats : cats.slice(MAX_VISIBLE_CATS);
+    if (!ui.showAllCats && hiddenCats.some((c) => String(c.id) === String(ui.filterCat))) ui.showAllCats = true;
+    const visibleCats = favCats.length > 0
+      ? (ui.showAllCats ? cats : favCats)
+      : (ui.showAllCats ? cats : cats.slice(0, MAX_VISIBLE_CATS));
     const chipsHTML = [
       chip("Alle", "all", ui.filterCat === "all"),
       chip("Ohne Kategorie", "none", ui.filterCat === "none"),
-      ...cats.map((c) => chip(c.name, c.id, String(ui.filterCat) === String(c.id)))
+      ...visibleCats.map((c) => chip(c.name, c.id, String(ui.filterCat) === String(c.id))),
+      ...(hiddenCats.length > 0
+        ? [`<button type="button" class="chipbtn" data-action="toggleAllCats">${ui.showAllCats ? "Weniger ▲" : `+${hiddenCats.length} mehr ▼`}</button>`]
+        : [])
     ].join("");
 
     container.innerHTML = `
@@ -1507,6 +1544,12 @@ window.renderIngredientsView = function (container, state, persist) {
 
       if (action === "filterCat") {
         ui.filterCat = btn.getAttribute("data-cat") || "all";
+        window.app.navigate("ingredients");
+        return;
+      }
+
+      if (action === "toggleAllCats") {
+        ui.showAllCats = !ui.showAllCats;
         window.app.navigate("ingredients");
         return;
       }

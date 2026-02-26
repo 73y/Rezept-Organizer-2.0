@@ -102,6 +102,8 @@ function quarantineRaw(raw, reason) {
 function defaultState() {
   return {
     ingredients: [], // {id,name,amount,unit,price,shelfLifeDays}
+    ingredientCategories: [], // {id, name, favorite}
+    recipeCategories: [], // {id, name, favorite}
     recipes: [],
     plannedRecipes: [],
     shopping: [],
@@ -213,6 +215,21 @@ function migrateReceipt(old) {
   return { id, at, store, createdAt, updatedAt, total: Math.round(total * 100) / 100, items };
 }
 
+function migrateCategory(old) {
+  if (!old) return null;
+  // Legacy: bare string (e.g. saved as string[] before object format)
+  if (typeof old === "string") {
+    const name = old.trim();
+    return name ? { id: uid(), name, favorite: false } : null;
+  }
+  if (typeof old !== "object") return null;
+  // Objects must have BOTH id and name; auto-healing either would silently corrupt references.
+  const id = String(old.id || "").trim();
+  const name = String(old.name || "").trim();
+  if (!id || !name) return null;
+  return { id, name, favorite: old.favorite === true };
+}
+
 function ensureStateShape(state) {
   state = state && typeof state === "object" ? state : {};
   const base = defaultState();
@@ -268,6 +285,13 @@ function ensureStateShape(state) {
       portionsWanted: Math.max(1, Math.round(Number(x.portionsWanted) || 1)),
       addedAt: x.addedAt ? String(x.addedAt) : new Date().toISOString()
     }));
+
+  next.ingredientCategories = Array.isArray(next.ingredientCategories)
+    ? next.ingredientCategories.map(migrateCategory).filter(Boolean)
+    : [];
+  next.recipeCategories = Array.isArray(next.recipeCategories)
+    ? next.recipeCategories.map(migrateCategory).filter(Boolean)
+    : [];
 
   next.shopping = Array.isArray(next.shopping) ? next.shopping : [];
   next.pantry = Array.isArray(next.pantry) ? next.pantry : [];
