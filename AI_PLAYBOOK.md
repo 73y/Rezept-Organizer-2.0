@@ -120,25 +120,21 @@ js/app.js
 
 ---
 
-## 5. Versioning Policy (Must Never Be Wrong)
+## 5. Versioning & Service Worker (Must Never Be Wrong)
 
-- **Version lives in:** `js/appMeta.js` → `version` + `buildId`
-- **Bump on every change set**, even small fixes.
+### App version
+- Source of truth: `js/appMeta.js`
+- Every change set = version bump (even tiny fixes).
 - **`buildId` format:** `YYYYMMDDHHmmss` (UTC or local, consistent)
-- **Version must be visible in UI** (Header + Settings footer).
-
-### After every PR merge + deploy, the AI must ask:
-> "Do you see version vX.Y.Z in the app (Header / Settings) after reload?"
+- Version must be visible in UI (Header + Settings and/or Footer).
 
 ### Version bump checklist:
 - [ ] `js/appMeta.js` — `version` + `buildId`
 - [ ] `service-worker.js` — comment build stamp at line 1
 - [ ] Confirm `APP_SHELL` in SW includes all new/changed files
 
----
-
-## 6. Service Worker / Cache Policy
-
+### Service Worker / Cache
+- Every release must bump `service-worker.js` buildId/cacheVersion.
 - **Cache name** must include both `version` and `buildId` to prevent mixing.
   Format: `einkauf-rezepte-pwa-${version}-${buildId}`
 - **On `install`:** pre-cache `APP_SHELL` and call `self.skipWaiting()`.
@@ -146,7 +142,10 @@ js/app.js
 - **`APP_SHELL` must list every JS file** including all `js/shopping/*` sub-modules.
 - `service-worker.js` itself **must stay in root** — `importScripts("./js/appMeta.js")` reads from root.
 
-### "Version not updating" fallback checklist (for users):
+### Mandatory post-merge check (ask the user every time)
+Ask: "Do you see version vX.Y.Z in the app (Header/Settings) after reload?"
+
+If not visible — fallback checklist:
 1. Hard reload (`Ctrl+Shift+R` / `Cmd+Shift+R`)
 2. DevTools → Application → Storage → Clear site data
 3. DevTools → Application → Service Workers → Unregister
@@ -154,25 +153,31 @@ js/app.js
 
 ---
 
-## 7. Default Git Workflow
+## 6. Git Workflow (Hard Rule)
 
+### Before starting ANY new task
+1. Fetch and update `main`.
+2. Check for any existing work branch from a previous task that is not merged:
+   - If it should be completed: push it (if needed), open a PR to `main`, and merge it **only** if the current task explicitly allows merging.
+   - If auth/token blocks automatic PR creation/merge: provide the exact PR creation link and **STOP**.
+3. Only after the repo is clean (or a PR link is provided as instructed), create a NEW branch from updated `main`.
+
+### Branch naming
+Use: `<type>/<topic>-vX.Y.Z`
+Examples:
 ```
-Branch naming: <type>/<topic>-vX.Y.Z
-  e.g.  feat/barcode-overlay-v0.6.12
-        fix/sw-cache-miss-v0.6.13
-        chore/update-playbook-v0.6.14
+fix/skip-loop-v0.6.8
+refactor/shopping-extract-4-5-v0.6.10
+feat/quick-confirm-v0.6.12
+chore/update-playbook-v0.6.13
 ```
 
-### Flow (always in this order):
-1. `git checkout main && git pull origin main`
-2. `git checkout -b <branch-name>`
-3. Make changes → `git add <specific files>` → commit (small, clear messages)
-4. `git push -u origin <branch-name>`
-5. Open PR to `main`
-6. **STOP — do not merge.** Report to user and wait.
-7. Merge only when user says **"merge now"** or **"push now"**.
+### Commit policy
+- Make small, frequent commits (at least after each sub-step).
+- Commit messages must be specific (what + where).
+- Never mix unrelated changes in one commit.
 
-### Commit message format:
+### Commit message format
 ```
 <type>(<scope>): <short description>
 
@@ -180,9 +185,15 @@ Optional body with bullet points if needed.
 ```
 Types: `feat`, `fix`, `chore`, `refactor`, `docs`
 
+### PR / Merge rule
+- Always push the branch and open a PR to `main`.
+- **STOP after opening the PR.** Do not merge.
+- Merge only if the task prompt explicitly says **"merge now"**.
+- If merge is blocked (token expired / no gh CLI), provide the exact PR link and STOP.
+
 ---
 
-## 8. Required Final Report Format (AI must produce this at end of every task)
+## 7. Required Final Report Format (AI must produce this at end of every task)
 
 ```
 ## Task Report
@@ -215,4 +226,4 @@ Types: `feat`, `fix`, `chore`, `refactor`, `docs`
 
 ---
 
-*Last updated: 2026-02-26 — v0.6.11*
+*Last updated: 2026-02-26 — v0.6.11 (strengthened git + versioning rules)*
