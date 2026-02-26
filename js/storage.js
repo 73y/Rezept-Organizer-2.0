@@ -102,6 +102,8 @@ function quarantineRaw(raw, reason) {
 function defaultState() {
   return {
     ingredients: [], // {id,name,amount,unit,price,shelfLifeDays}
+    ingredientCategories: [], // {id, name, favorite}
+    recipeCategories: [], // {id, name, favorite}
     recipes: [],
     plannedRecipes: [],
     shopping: [],
@@ -116,7 +118,10 @@ function defaultState() {
     receipts: [],
 
     // Cache für Barcode->Produkt (Open Food Facts Autofill)
-    barcodeLookupCache: {}
+    barcodeLookupCache: {},
+
+    // Generische Zutaten: übergeordnete Konzept-Ebene über konkreten Produkten
+    baseIngredients: [] // [{id, name}]
   };
 }
 
@@ -150,7 +155,7 @@ function migrateIngredient(old) {
   // Neues Format schon vorhanden?
   if (old && typeof old === "object" && "amount" in old && "unit" in old && "price" in old) {
     const barcode = (String(old.barcode ?? "").trim()).replace(/\s+/g, "").replace(/[^0-9]/g, "");
-    return { ...old, barcode: barcode || "", nutriments: sanitizeNutriments(old.nutriments) };
+    return { ...old, barcode: barcode || "", nutriments: sanitizeNutriments(old.nutriments), baseIngredientId: old.baseIngredientId ? String(old.baseIngredientId) : null };
   }
 
   const id = old?.id ?? (window.crypto?.randomUUID ? crypto.randomUUID() : "id_" + Date.now());
@@ -163,7 +168,7 @@ function migrateIngredient(old) {
 
   const barcode = (String(old?.barcode ?? "").trim()).replace(/\s+/g, "").replace(/[^0-9]/g, "");
 
-  return { id, name, barcode, amount, unit, price, shelfLifeDays, nutriments: sanitizeNutriments(old?.nutriments) };
+  return { id, name, barcode, amount, unit, price, shelfLifeDays, nutriments: sanitizeNutriments(old?.nutriments), baseIngredientId: old?.baseIngredientId ? String(old.baseIngredientId) : null };
 }
 
 
@@ -210,6 +215,21 @@ function migrateReceipt(old) {
   return { id, at, store, createdAt, updatedAt, total: Math.round(total * 100) / 100, items };
 }
 
+function migrateCategory(old) {
+  if (!old) return null;
+  // Legacy: bare string (e.g. saved as string[] before object format)
+  if (typeof old === "string") {
+    const name = old.trim();
+    return name ? { id: uid(), name, favorite: false } : null;
+  }
+  if (typeof old !== "object") return null;
+  // Objects must have BOTH id and name; auto-healing either would silently corrupt references.
+  const id = String(old.id || "").trim();
+  const name = String(old.name || "").trim();
+  if (!id || !name) return null;
+  return { id, name, favorite: old.favorite === true };
+}
+
 function ensureStateShape(state) {
   state = state && typeof state === "object" ? state : {};
   const base = defaultState();
@@ -220,6 +240,40 @@ function ensureStateShape(state) {
   };
 
   next.ingredients = Array.isArray(next.ingredients) ? next.ingredients.map(migrateIngredient) : [];
+
+  // ✅ baseIngredients normalisieren: ungültige Einträge rauswerfen
+  next.baseIngredients = Array.isArray(next.baseIngredients)
+    ? next.baseIngredients
+        .filter(x => x && typeof x === "object" && x.id && typeof x.id === "string" && x.name && typeof x.name === "string")
+        .map(x => ({ id: String(x.id).trim(), name: String(x.name).trim() }))
+        .filter(x => x.id && x.name)
+    : [];
+
+  // ✅ Verwaiste baseIngredientId-Links auf Zutaten bereinigen
+  const _validBaseIds = new Set(next.baseIngredients.map(x => x.id));
+  for (const ing of next.ingredients) {
+    if (ing.baseIngredientId && !_validBaseIds.has(ing.baseIngredientId)) {
+      ing.baseIngredientId = null;
+    }
+  }
+
+  // ✅ Rezept-Items: ingredientId → baseIngredientId migrieren (wenn Zutat verknüpft ist)
+  const _biByIngId = new Map();
+  for (const ing of next.ingredients) {
+    if (ing.baseIngredientId) _biByIngId.set(String(ing.id), String(ing.baseIngredientId));
+  }
+  for (const r of (next.recipes || [])) {
+    for (const it of (r.items || [])) {
+      if (!it) continue;
+      if (!it.baseIngredientId && it.ingredientId) {
+        const mapped = _biByIngId.get(String(it.ingredientId));
+        if (mapped) it.baseIngredientId = mapped;
+      }
+      if (it.baseIngredientId) it.baseIngredientId = String(it.baseIngredientId).trim() || null;
+      if (it.baseIngredientId && !_validBaseIds.has(it.baseIngredientId)) it.baseIngredientId = null;
+    }
+  }
+
   next.recipes = Array.isArray(next.recipes) ? next.recipes : [];
 
   next.plannedRecipes = Array.isArray(next.plannedRecipes) ? next.plannedRecipes : [];
@@ -231,6 +285,13 @@ function ensureStateShape(state) {
       portionsWanted: Math.max(1, Math.round(Number(x.portionsWanted) || 1)),
       addedAt: x.addedAt ? String(x.addedAt) : new Date().toISOString()
     }));
+
+  next.ingredientCategories = Array.isArray(next.ingredientCategories)
+    ? next.ingredientCategories.map(migrateCategory).filter(Boolean)
+    : [];
+  next.recipeCategories = Array.isArray(next.recipeCategories)
+    ? next.recipeCategories.map(migrateCategory).filter(Boolean)
+    : [];
 
   next.shopping = Array.isArray(next.shopping) ? next.shopping : [];
   next.pantry = Array.isArray(next.pantry) ? next.pantry : [];

@@ -145,6 +145,25 @@
         L().upsertPlannedRecipe?.(state, recipe.id, desiredPortions);
         L().reconcileShoppingWithPlan?.(state, { mode: "raise" });
 
+        // Generische Zutaten ohne konkretes Produkt als Text-Einträge in die Einkaufsliste
+        const _mult = multiplierFromPortions(recipe, desiredPortions);
+        const _fmtAmt = (n) => { const x = Number(n) || 0; return x.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1"); };
+        if (!Array.isArray(state.shopping)) state.shopping = [];
+        for (const it of (recipe.items || [])) {
+          if (!it.baseIngredientId || it.ingredientId) continue; // nur base-only
+          const bName = window.baseIngredients?.nameById(state, it.baseIngredientId) || it.baseIngredientId;
+          const amt = (Number(it.amount) || 0) * _mult;
+          const itUnit = it.unit || "";
+          const label = `${bName}${amt > 0 ? `: ${_fmtAmt(amt)}` : ""}${itUnit ? " " + itUnit : ""}`.trim();
+          const existing = state.shopping.find(x => x.type === "text" && x.baseIngredientId === it.baseIngredientId);
+          if (existing) {
+            existing.label = label;
+            existing.done = false;
+          } else {
+            state.shopping.push({ id: uid(), type: "text", label, baseIngredientId: it.baseIngredientId, done: false });
+          }
+        }
+
         persist();
         close();
         // Wichtig: nicht automatisch zur Einkaufsliste wechseln.
@@ -175,25 +194,35 @@
 
       const items = (recipe.items || [])
         .map((it) => {
-          const ing = L().getIng(state, it.ingredientId);
-          if (!ing) return null;
+          const baseName = it.baseIngredientId
+            ? (window.baseIngredients?.nameById(state, it.baseIngredientId) || null)
+            : null;
+          const ing = it.ingredientId ? L().getIng(state, it.ingredientId) : null;
+          if (!baseName && !ing) return null;
 
-          const row = after.byIngredient.get(String(ing.id));
-          if (!row) return null;
+          const name = baseName || ing.name;
+          const unit = it.unit || ing?.unit || "";
+          const ingId = ing?.id || null;
 
-          const curPacks = currentShoppingPacks(ing.id);
-          const reqPacks = Math.max(0, Math.round(Number(row.requiredPacks) || 0));
+          const row = ingId ? after.byIngredient.get(String(ingId)) : null;
+
+          const curPacks = ingId ? currentShoppingPacks(ingId) : 0;
+          const reqPacks = row ? Math.max(0, Math.round(Number(row.requiredPacks) || 0)) : 0;
           const targetPacks = reqPacks > 0 ? Math.max(curPacks, reqPacks) : curPacks;
 
-          const beforeReq = before.byIngredient.get(String(ing.id))?.requiredPacks || 0;
+          const beforeReq = ingId ? (before.byIngredient.get(String(ingId))?.requiredPacks || 0) : 0;
+
+          const need = row ? row.need : (Number(it.amount) || 0);
+          const have = row ? row.have : 0;
+          const missing = row ? row.missing : need;
 
           return {
-            id: ing.id,
-            name: ing.name,
-            unit: ing.unit,
-            need: row.need,
-            have: row.have,
-            missing: row.missing,
+            id: ingId,
+            name,
+            unit,
+            need,
+            have,
+            missing,
             reqPacks,
             beforeReq: Math.max(0, Math.round(Number(beforeReq) || 0)),
             curPacks,
@@ -501,14 +530,20 @@
     function computeLines(multiplier) {
       return (recipe.items || [])
         .map((it) => {
-          const ing = L().getIng(state, it.ingredientId);
-          if (!ing) return null;
+          const baseName = it.baseIngredientId
+            ? (window.baseIngredients?.nameById(state, it.baseIngredientId) || null)
+            : null;
+          const ing = it.ingredientId ? L().getIng(state, it.ingredientId) : null;
+          if (!baseName && !ing) return null;
 
+          const name = baseName || ing.name;
+          const unit = it.unit || ing?.unit || "";
+          const ingredientId = it.ingredientId || null;
           const need = (Number(it.amount) || 0) * multiplier;
-          const have = L().pantryAvailable(state, it.ingredientId);
+          const have = ingredientId ? L().pantryAvailable(state, ingredientId) : 0;
           const missing = Math.max(0, need - have);
 
-          return { ingredientId: ing.id, name: ing.name, unit: ing.unit, need, have, missing };
+          return { ingredientId, name, unit, need, have, missing };
         })
         .filter(Boolean);
     }

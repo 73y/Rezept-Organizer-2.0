@@ -197,8 +197,8 @@ input.step-input{
 .recipe-rows-head,
 .recipe-row {
   display: grid;
-  grid-template-columns: 1.4fr 0.6fr 0.6fr 90px;
-  gap: 10px;
+  grid-template-columns: 1fr 72px 72px 36px;
+  gap: 6px;
   align-items: center;
 }
 
@@ -223,8 +223,11 @@ input.step-input{
 }
 
 .recipe-row .btn-mini {
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  min-width: 0;
+  border-radius: 10px;
 }
 
 button.success {

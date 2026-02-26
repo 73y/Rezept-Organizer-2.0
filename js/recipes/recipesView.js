@@ -11,7 +11,8 @@
     openRecipeMenus: new Set(),
 
     // 0.3.0 Filter
-    filterCat: "all" // "all" | "none" | <categoryId>
+    filterCat: "all", // "all" | "none" | <categoryId>
+    showAllCats: false
   };
 
   function fmt(n) {
@@ -43,14 +44,15 @@
   }
 
   function recipeItemsSummary(state, recipe) {
-    const items = (recipe.items || []).filter((x) => x.ingredientId);
+    const items = (recipe.items || []).filter((x) => x.baseIngredientId || x.ingredientId);
     if (!items.length) return "Keine Zutaten";
 
     const parts = items.slice(0, 3).map((it) => {
-      const ing = L().getIng(state, it.ingredientId);
-      const name = ing ? ing.name : "(Unbekannt)";
+      const name = it.baseIngredientId
+        ? (window.baseIngredients?.nameById(state, it.baseIngredientId) || "(Unbekannt)")
+        : (L().getIng(state, it.ingredientId)?.name || "(Unbekannt)");
       const amt = Number(it.amount) || 0;
-      const unit = ing ? ing.unit : (it.unit || "");
+      const unit = it.unit || (L().getIng(state, it.ingredientId)?.unit || "");
       return `${name} (${fmt(amt)} ${unit})`;
     });
 
@@ -158,13 +160,14 @@
     const rows = cats
       .map(
         (c) => `
-        <div class="row" style="margin:8px 0; align-items:center;">
-          <div style="min-width:220px; flex:1;">
-            <input data-role="catName" data-id="${esc(c.id)}" value="${esc(c.name)}" />
-          </div>
-          <div style="flex:0 0 auto;">
-            <button type="button" class="danger" data-action="catDel" data-id="${esc(c.id)}">Löschen</button>
-          </div>
+        <div style="display:grid; grid-template-columns:1fr 32px 32px; gap:4px; align-items:center; margin:4px 0;">
+          <input style="width:100%; min-width:0; font-size:16px;" data-role="catName" data-id="${esc(c.id)}" value="${esc(c.name)}" />
+          <button type="button" data-action="catFav" data-id="${esc(c.id)}" data-fav="${c.favorite ? "true" : "false"}"
+            title="${c.favorite ? "Favorit entfernen" : "Als Favorit markieren"}"
+            style="width:32px; height:32px; min-width:32px; display:flex; align-items:center; justify-content:center; padding:0; background:none; border:none; font-size:16px; cursor:pointer; color:${c.favorite ? "#f59e0b" : "var(--muted)"}; opacity:${c.favorite ? "1" : "0.55"};"
+          >${c.favorite ? "★" : "☆"}</button>
+          <button type="button" data-action="catDel" data-id="${esc(c.id)}" aria-label="Löschen" title="Löschen"
+            style="width:32px; height:32px; min-width:32px; display:flex; align-items:center; justify-content:center; padding:0; border-radius:6px; background:rgba(239,68,68,0.14); border:1px solid rgba(239,68,68,0.4); color:#ef4444; font-size:14px; cursor:pointer;">✕</button>
         </div>
       `
       )
@@ -174,9 +177,9 @@
       <div class="small muted2">Kategorien für Rezepte. Beim Löschen wird die Kategorie bei betroffenen Rezepten entfernt.</div>
       <div style="margin-top:12px;">
         <label class="small">Neue Kategorie</label><br/>
-        <div class="row" style="align-items:center;">
-          <div style="flex:1; min-width:220px;"><input id="cat-new" placeholder="z. B. Meal Prep" /></div>
-          <div style="flex:0 0 auto;"><button type="button" class="info" data-action="catAdd">Hinzufügen</button></div>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:nowrap; margin-top:4px;">
+          <input id="cat-new" style="flex:1; min-width:0;" placeholder="z. B. Meal Prep" />
+          <button type="button" class="info" style="flex:0 0 auto;" data-action="catAdd">Hinzufügen</button>
         </div>
       </div>
       <div style="margin-top:12px;">
@@ -210,7 +213,9 @@
             return;
           }
           used.add(key);
-          next.push({ id, name });
+          const favBtn = m.querySelector(`button[data-action="catFav"][data-id="${id}"]`);
+          const favorite = favBtn?.getAttribute("data-fav") === "true";
+          next.push({ id, name, favorite });
         }
 
         next.sort((a, b) => (a.name || "").localeCompare(b.name || "", "de"));
@@ -236,17 +241,27 @@
         cats2
           .map(
             (c) => `
-            <div class="row" style="margin:8px 0; align-items:center;">
-              <div style="min-width:220px; flex:1;">
-                <input data-role="catName" data-id="${esc(c.id)}" value="${esc(c.name)}" />
-              </div>
-              <div style="flex:0 0 auto;">
-                <button type="button" class="danger" data-action="catDel" data-id="${esc(c.id)}">Löschen</button>
-              </div>
+            <div style="display:grid; grid-template-columns:1fr 32px 32px; gap:4px; align-items:center; margin:4px 0;">
+              <input style="width:100%; min-width:0; font-size:16px;" data-role="catName" data-id="${esc(c.id)}" value="${esc(c.name)}" />
+              <button type="button" data-action="catFav" data-id="${esc(c.id)}" data-fav="${c.favorite ? "true" : "false"}"
+                title="${c.favorite ? "Favorit entfernen" : "Als Favorit markieren"}"
+                style="width:32px; height:32px; min-width:32px; display:flex; align-items:center; justify-content:center; padding:0; background:none; border:none; font-size:16px; cursor:pointer; color:${c.favorite ? "#f59e0b" : "var(--muted)"}; opacity:${c.favorite ? "1" : "0.55"};"
+              >${c.favorite ? "★" : "☆"}</button>
+              <button type="button" data-action="catDel" data-id="${esc(c.id)}" aria-label="Löschen" title="Löschen"
+                style="width:32px; height:32px; min-width:32px; display:flex; align-items:center; justify-content:center; padding:0; border-radius:6px; background:rgba(239,68,68,0.14); border:1px solid rgba(239,68,68,0.4); color:#ef4444; font-size:14px; cursor:pointer;">✕</button>
             </div>
           `
           )
           .join("") || `<div class="small">Noch keine Kategorien.</div>`;
+    }
+
+    function syncFavsToState() {
+      for (const fb of modal.querySelectorAll('button[data-action="catFav"]')) {
+        const id = String(fb.getAttribute("data-id") || "").trim();
+        const fav = fb.getAttribute("data-fav") === "true";
+        const cat = (state.recipeCategories || []).find((c) => String(c.id) === id);
+        if (cat) cat.favorite = fav;
+      }
     }
 
     modal.addEventListener("click", (e) => {
@@ -255,6 +270,16 @@
       const a = btn.getAttribute("data-action");
       const msg = modal.querySelector("#cat-msg");
       if (msg) msg.textContent = "";
+
+      if (a === "catFav") {
+        const isFav = btn.getAttribute("data-fav") === "true";
+        const newFav = !isFav;
+        btn.setAttribute("data-fav", newFav ? "true" : "false");
+        btn.setAttribute("title", newFav ? "Favorit entfernen" : "Als Favorit markieren");
+        btn.textContent = newFav ? "★" : "☆";
+        btn.style.color = newFav ? "#f59e0b" : "inherit";
+        btn.style.opacity = newFav ? "1" : "0.4";
+      }
 
       if (a === "catAdd") {
         const inp = modal.querySelector("#cat-new");
@@ -265,12 +290,14 @@
           if (msg) msg.textContent = "Kategorie existiert schon.";
           return;
         }
-        state.recipeCategories.push({ id: uid(), name });
+        syncFavsToState();
+        state.recipeCategories.push({ id: uid(), name, favorite: false });
         if (inp) inp.value = "";
         rebuildList();
       }
 
       if (a === "catDel") {
+        syncFavsToState();
         const id = btn.getAttribute("data-id") || "";
         state.recipeCategories = (state.recipeCategories || []).filter((c) => String(c.id) !== String(id));
         rebuildList();
@@ -335,6 +362,7 @@
       </div>
 
       <div class="small" id="r-msg" style="margin-top:10px; color: rgba(239,68,68,0.9);"></div>
+
     `;
 
     const { modal, close } = M().buildModal({
@@ -358,12 +386,12 @@
         const rows = Array.from(m.querySelectorAll(".recipe-row"));
         const items = rows
           .map((row) => {
-            const ingredientId = row.querySelector("select")?.value || "";
-            const ing = L().getIng(state, ingredientId);
+            const baseIngredientId = row.dataset.baseId || null;
             const amount = toNum(row.querySelector("input[data-role=amt]")?.value);
-            if (!ingredientId || !ing) return null;
+            const unit = (row.querySelector("[data-role=unit]")?.value || "").trim();
+            if (!baseIngredientId) return null;
             if (!Number.isFinite(amount) || amount <= 0) return null;
-            return { ingredientId, amount: Number(amount.toFixed(4)), unit: ing.unit };
+            return { baseIngredientId, amount: Number(amount.toFixed(4)), unit };
           })
           .filter(Boolean);
 
@@ -415,12 +443,11 @@
       const rows = Array.from(modal.querySelectorAll(".recipe-row"));
       const tmpItems = rows
         .map((row) => {
-          const ingredientId = row.querySelector("select")?.value || "";
-          const ing = L().getIng(state, ingredientId);
+          const baseIngredientId = row.dataset.baseId || null;
           const amount = toNum(row.querySelector("input[data-role=amt]")?.value);
-          if (!ingredientId || !ing) return null;
+          if (!baseIngredientId) return null;
           if (!Number.isFinite(amount) || amount <= 0) return null;
-          return { ingredientId, amount: Number(amount.toFixed(4)), unit: ing.unit };
+          return { baseIngredientId, amount };
         })
         .filter(Boolean);
 
@@ -431,41 +458,74 @@
 
       const tmpRecipe = { items: tmpItems, portions: Math.max(1, Math.round(toNum(modal.querySelector("#r-portions")?.value) || 1)) };
       const total = L().recipeCost(state, tmpRecipe);
+      if (!total) {
+        costEl.textContent = "—";
+        return;
+      }
       const per = tmpRecipe.portions > 0 ? total / tmpRecipe.portions : total;
       costEl.textContent = `${euro(total)} (≈ ${euro(per)} / Portion)`;
     }
 
-    function addRow(ingredientId = "", amount = "") {
+    function addRow(baseIngredientId = null, amount = "", unit = "g", fallbackName = "") {
       const row = document.createElement("div");
       row.className = "recipe-row";
+      row.dataset.baseId = baseIngredientId || "";
 
-      const options = `<option value="">– wählen –</option>${ingredientOptionsHTML(state, ingredientId)}`;
+      const displayName = baseIngredientId
+        ? (window.baseIngredients?.nameById(state, baseIngredientId) || fallbackName || baseIngredientId)
+        : (fallbackName || "Zutat wählen…");
 
       row.innerHTML = `
-        <select>${options}</select>
-        <input data-role="amt" type="number" min="0" step="0.01" placeholder="0" value="${esc(amount)}" />
-        <input data-role="unit" placeholder="" readonly />
-        <button type="button" class="danger btn-mini" data-action="rowRemove">×</button>
+        <div data-role="ingredient" title="Zutat wählen" style="cursor:pointer; padding:6px 10px;
+          border:1px solid var(--border); border-radius:8px; background:var(--input);
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-height:36px;
+          display:flex; align-items:center; color:${baseIngredientId ? "inherit" : "var(--muted2, #888)"};">
+          ${esc(displayName)}
+        </div>
+        <input data-role="amt" type="number" min="0" step="0.01" placeholder="0" value="${esc(amount)}" style="text-align:center;" />
+        <select data-role="unit">
+          <option value="g">g</option>
+          <option value="ml">ml</option>
+          <option value="Stück">Stück</option>
+          <option value="kg">kg</option>
+          <option value="EL">EL</option>
+          <option value="TL">TL</option>
+          <option value="Prise">Prise</option>
+          <option value="Bund">Bund</option>
+          <option value="Dose">Dose</option>
+          <option value="Pkg">Pkg</option>
+        </select>
+        <button type="button" class="danger btn-mini" data-action="rowRemove" title="Entfernen">×</button>
       `;
 
-      const sel = row.querySelector("select");
       const amtEl = row.querySelector("input[data-role=amt]");
-      const unitEl = row.querySelector("input[data-role=unit]");
+      const ingCell = row.querySelector("[data-role=ingredient]");
+      const unitEl = row.querySelector("select[data-role=unit]");
+      const _unitPresets = ["g", "ml", "Stück", "kg", "EL", "TL", "Prise", "Bund", "Dose", "Pkg"];
+      const _effUnit = unit && unit.trim() ? unit.trim() : "g";
+      if (!_unitPresets.includes(_effUnit)) {
+        const _opt = document.createElement("option");
+        _opt.value = _effUnit;
+        _opt.textContent = _effUnit;
+        unitEl.insertBefore(_opt, unitEl.firstChild);
+      }
+      unitEl.value = _effUnit;
 
-      function updateUnit() {
-        const ing = L().getIng(state, sel.value);
-        unitEl.value = ing ? ing.unit : "";
+      function openPicker() {
+        window.baseIngredients.openPickerModal(state, persist, "", row.dataset.baseId || null, (id) => {
+          row.dataset.baseId = id || "";
+          if (ingCell) {
+            ingCell.textContent = id
+              ? (window.baseIngredients.nameById(state, id) || id)
+              : "Zutat wählen…";
+            ingCell.style.color = id ? "inherit" : "var(--muted2, #888)";
+          }
+          recomputeCost();
+        });
       }
 
-      sel.addEventListener("change", () => {
-        updateUnit();
-        recomputeCost();
-      });
-
-      amtEl.addEventListener("input", () => {
-        recomputeCost();
-      });
-
+      ingCell.addEventListener("click", openPicker);
+      amtEl.addEventListener("input", () => recomputeCost());
 
       // remove handler
       row.querySelector("button[data-action=rowRemove]").addEventListener("click", () => {
@@ -474,7 +534,6 @@
       });
 
       rowsWrap.appendChild(row);
-      updateUnit();
       recomputeCost();
       amtEl.focus();
     }
@@ -483,7 +542,10 @@
     const initItems = (recipeOrNull?.items || []).slice();
     if (initItems.length) {
       for (const it of initItems) {
-        addRow(it.ingredientId, it.amount);
+        const fallbackName = it.baseIngredientId
+          ? ""
+          : (L().getIng(state, it.ingredientId)?.name || "(Zutat nicht gefunden)");
+        addRow(it.baseIngredientId || null, it.amount, it.unit || "g", fallbackName);
       }
     } else {
       addRow();
@@ -542,10 +604,21 @@
 
     const chip = (label, catId, active) =>
       `<button type="button" class="chipbtn ${active ? "active" : ""}" data-action="filterCat" data-cat="${esc(catId)}">${esc(label)}</button>`;
+    const favCats = cats.filter((c) => c.favorite);
+    const nonFavCats = cats.filter((c) => !c.favorite);
+    const MAX_VISIBLE_CATS = 6;
+    const hiddenCats = favCats.length > 0 ? nonFavCats : cats.slice(MAX_VISIBLE_CATS);
+    if (!ui.showAllCats && hiddenCats.some((c) => String(c.id) === String(ui.filterCat))) ui.showAllCats = true;
+    const visibleCats = favCats.length > 0
+      ? (ui.showAllCats ? cats : favCats)
+      : (ui.showAllCats ? cats : cats.slice(0, MAX_VISIBLE_CATS));
     const chipsHTML = [
       chip("Alle", "all", ui.filterCat === "all"),
       chip("Ohne Kategorie", "none", ui.filterCat === "none"),
-      ...cats.map((c) => chip(c.name, c.id, String(ui.filterCat) === String(c.id)))
+      ...visibleCats.map((c) => chip(c.name, c.id, String(ui.filterCat) === String(c.id))),
+      ...(hiddenCats.length > 0
+        ? [`<button type="button" class="chipbtn" data-action="toggleAllCats">${ui.showAllCats ? "Weniger ▲" : `+${hiddenCats.length} mehr ▼`}</button>`]
+        : [])
     ].join("");
 
     container.innerHTML = `
@@ -598,6 +671,12 @@
 
       if (action === "filterCat") {
         ui.filterCat = btn.getAttribute("data-cat") || "all";
+        window.app.navigate("recipes");
+        return;
+      }
+
+      if (action === "toggleAllCats") {
+        ui.showAllCats = !ui.showAllCats;
         window.app.navigate("recipes");
         return;
       }
