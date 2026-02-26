@@ -42,8 +42,8 @@
       return s.trim();
     });
 
-    const res = Stg.besring(dbg.result || "").toUpperCase();
-    const bestName = String(dbt?.name || "").trim();
+    const res = String(dbg.result || "").toUpperCase();
+    const bestName = (typeof dbg.best === "string" ? dbg.best : String(dbg.best?.name || "")).trim();
     const head = res ? `${res}${bestName ? `: ${bestName.slice(0, 40)}` : ""} — ` : "";
 
     return (head + parts.join(" | ")).slice(0, 260);
