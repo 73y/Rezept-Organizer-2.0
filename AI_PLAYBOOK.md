@@ -31,33 +31,7 @@
 
 ---
 
-## 3. Modes & Permissions (Hard Rule)
-
-### Default Mode (Execution Mode)
-- Default is EXECUTION mode:
-  - Implement ONLY what the current task asks for.
-  - Minimal scope; no extra refactors; no "nice-to-have" changes.
-  - Keep commits small and focused.
-
-### Plan / Audit Mode (Only if explicitly enabled)
-- Plan/Audit Mode is ONLY allowed if the user writes: `PLAN MODE: ON`
-- In Plan/Audit Mode you may:
-  - Do a broad audit, map responsibilities, identify risks/duplications.
-  - Propose a step-by-step plan + test checklist BEFORE coding (if asked).
-- If `PLAN MODE: ON` is NOT present, do NOT spend tokens on broad planning.
-
-### Multi-Agent / Parallel Work (Only if explicitly enabled)
-- Multi-agent / parallel coding is ONLY allowed if the user writes: `MULTI-AGENT: ON`
-- If not enabled:
-  - Work sequentially in one coherent change set.
-  - Do not split work across parallel threads/agents.
-
-### Override Rule
-- The user can override these rules only by explicitly writing the keywords above in the task prompt.
-
----
-
-## 4. Folder Structure (Hard Rule)
+## 3. Folder Structure (Hard Rule)
 
 ```
 /                        ← repo root
@@ -103,7 +77,7 @@
 
 ---
 
-## 5. Script Load Order (Critical)
+## 4. Script Load Order (Critical)
 
 **Source of truth: `index.html` `<script>` loader array.**
 
@@ -146,7 +120,7 @@ js/app.js
 
 ---
 
-## 6. Versioning & Service Worker (Must Never Be Wrong)
+## 5. Versioning & Service Worker (Must Never Be Wrong)
 
 ### App version
 - Source of truth: `js/appMeta.js`
@@ -176,6 +150,32 @@ If not visible — fallback checklist:
 2. DevTools → Application → Storage → Clear site data
 3. DevTools → Application → Service Workers → Unregister
 4. Normal reload
+
+---
+
+## 6. Modes & Permissions (Hard Rule)
+
+### Default Mode (Execution Mode)
+- Default is EXECUTION mode:
+  - Implement ONLY what the current task asks for.
+  - Minimal scope; no extra refactors; no "nice-to-have" changes.
+  - Keep commits small and focused.
+
+### Plan / Audit Mode (Only if explicitly enabled)
+- Plan/Audit Mode is ONLY allowed if the user writes: `PLAN MODE: ON`
+- In Plan/Audit Mode you may:
+  - Do a broad audit, map responsibilities, identify risks/duplications.
+  - Propose a step-by-step plan + test checklist BEFORE coding (if asked).
+- If `PLAN MODE: ON` is NOT present, do NOT spend tokens on broad planning.
+
+### Multi-Agent / Parallel Work (Only if explicitly enabled)
+- Multi-agent / parallel coding is ONLY allowed if the user writes: `MULTI-AGENT: ON`
+- If not enabled:
+  - Work sequentially in one coherent change set.
+  - Do not split work across parallel threads/agents.
+
+### Override Rule
+- The user can override these rules only by explicitly writing the keywords above in the task prompt.
 
 ---
 
@@ -252,4 +252,4 @@ Types: `feat`, `fix`, `chore`, `refactor`, `docs`
 
 ---
 
-*Last updated: 2026-02-26 — v0.6.11 (added Modes & Permissions as §3)*
+*Last updated: 2026-02-26 — v0.6.11 (added Modes & Permissions section)*
