@@ -42,8 +42,8 @@
       return s.trim();
     });
 
-    const res = Stg.besring(dbg.result || "").toUpperCase();
-    const bestName = String(dbt?.name || "").trim();
+    const res = String(dbg.result || "").toUpperCase();
+    const bestName = (typeof dbg.best === "string" ? dbg.best : String(dbg.best?.name || "")).trim();
     const head = res ? `${res}${bestName ? `: ${bestName.slice(0, 40)}` : ""} — ` : "";
 
     return (head + parts.join(" | ")).slice(0, 260);
@@ -687,21 +687,6 @@ ${r.store || "Bon"} · ${fmtDate(r.at)}
 Hinweis: Dazu werden auch die zugehörigen Ausgaben-Einträge entfernt.`);
         if (!ok) return;
 
-// Optional: Beim Überspringen trotzdem als Zutat anlegen (ohne Vorrat/PurchaseLog).
-try {
-  const nameRaw = String(cur.offName || cur.rawName || cur.name || "").trim();
-  if (nameRaw) {
-    const list = Array.isArray(state.ingredients) ? state.ingredients : (state.ingredients = []);
-    const exists = list.find((x) => String(x?.name || "").trim().toLowerCase() === nameRaw.toLowerCase());
-    if (!exists) {
-      const q = Math.max(1, Number(cur?.qty) || 1);
-      const lt = Number(cur?.lineTotal);
-      const unitPrice = (Number.isFinite(lt) && lt > 0) ? (Math.round((lt / q) * 100) / 100) : 0;
-      list.push({ id: uid(), name: nameRaw, barcode: "", amount: 1, unit: "Stück", price: unitPrice, shelfLifeDays: 0 });
-    }
-  }
-} catch {}
-
         deleteReceiptAndRelated(state, id);
         persist();
         modal.close();
@@ -788,74 +773,6 @@ modal.modal.addEventListener("change", (ev) => {
       }
 
       doSet(v || null);
-
-    if (!modal) return;
-    try {
-      const m = modal.modal;
-      const pickBtn = m.querySelector('#receipt-pick-btn');
-      const fileInput = m.querySelector('#receipt-file');
-      const fileNameEl = m.querySelector('#receipt-picked-name');
-
-      const setFileLabel = (file) => {
-        if (!fileNameEl) return;
-        fileNameEl.textContent = file ? file.name : 'Keine Datei gewählt';
-      };
-
-      // Fallback: klassischer <input type=file>
-      const openHiddenInput = () => {
-        if (!fileInput) return;
-        fileInput.value = '';
-        fileInput.click();
-      };
-
-      // Bevorzugt: Native File-Picker (öffnet auf Android zuverlässig "Eigene Dateien")
-      const tryNativePicker = async () => {
-        if (!window.showOpenFilePicker) return null;
-        try {
-          const [handle] = await window.showOpenFilePicker({
-            multiple: false,
-            types: [
-              {
-                description: 'PDF',
-                accept: { 'application/pdf': ['.pdf'] }
-              },
-              {
-                description: 'Text',
-                accept: { 'text/plain': ['.txt', '.text'] }
-              }
-            ]
-          });
-          if (!handle) return null;
-          const f = await handle.getFile();
-          return f || null;
-        } catch (_) {
-          return null;
-        }
-      };
-
-      if (fileInput) {
-        fileInput.addEventListener('change', () => {
-          const f = fileInput.files?.[0] || null;
-          m.__receiptFile = f;
-          setFileLabel(f);
-        });
-      }
-
-      if (pickBtn) {
-        pickBtn.addEventListener('click', async () => {
-          const f = await tryNativePicker();
-          if (f) {
-            m.__receiptFile = f;
-            setFileLabel(f);
-            return;
-          }
-          openHiddenInput();
-        });
-      }
-    } catch (err) {
-      console.warn('Receipt picker init failed', err);
-    }
-
     });
   }
 
