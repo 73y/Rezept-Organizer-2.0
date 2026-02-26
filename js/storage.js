@@ -189,6 +189,9 @@ function migrateReceiptItem(old) {
   const up = Number.isFinite(unitPrice) ? unitPrice : (Number.isFinite(lineTotal) ? lineTotal / qty : 0);
   const lt = Number.isFinite(lineTotal) ? lineTotal : (Number.isFinite(unitPrice) ? unitPrice * qty : 0);
 
+  const skippedAt = old.skippedAt ? String(old.skippedAt) : null;
+  const skipReason = old.skipReason ? String(old.skipReason) : undefined;
+
   return {
     id,
     rawName,
@@ -196,7 +199,9 @@ function migrateReceiptItem(old) {
     unitPrice: Math.round((Number(up) || 0) * 100) / 100,
     lineTotal: Math.round((Number(lt) || 0) * 100) / 100,
     matchedIngredientId,
-    kind
+    kind,
+    ...(skippedAt != null ? { skippedAt } : {}),
+    ...(skipReason != null ? { skipReason } : {})
   };
 }
 
