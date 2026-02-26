@@ -25,6 +25,8 @@ const APP_SHELL = [
   "./js/shopping/openFoodFacts.js",
   "./js/shopping/receiptParsing.js",
   "./js/shopping/receiptData.js",
+  "./js/shopping/shoppingCore.js",
+  "./js/shopping/receiptScanning.js",
   "./js/shopping.js",
   "./js/dashboard.js",
   "./js/stats.js",
