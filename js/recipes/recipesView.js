@@ -363,19 +363,6 @@
 
       <div class="small" id="r-msg" style="margin-top:10px; color: rgba(239,68,68,0.9);"></div>
 
-      <datalist id="r-unit-presets">
-        <option value="g">
-        <option value="kg">
-        <option value="ml">
-        <option value="L">
-        <option value="Stück">
-        <option value="EL">
-        <option value="TL">
-        <option value="Prise">
-        <option value="Bund">
-        <option value="Dose">
-        <option value="Pkg">
-      </datalist>
     `;
 
     const { modal, close } = M().buildModal({
@@ -401,7 +388,7 @@
           .map((row) => {
             const baseIngredientId = row.dataset.baseId || null;
             const amount = toNum(row.querySelector("input[data-role=amt]")?.value);
-            const unit = (row.querySelector("input[data-role=unit]")?.value || "").trim();
+            const unit = (row.querySelector("[data-role=unit]")?.value || "").trim();
             if (!baseIngredientId) return null;
             if (!Number.isFinite(amount) || amount <= 0) return null;
             return { baseIngredientId, amount: Number(amount.toFixed(4)), unit };
@@ -479,7 +466,7 @@
       costEl.textContent = `${euro(total)} (≈ ${euro(per)} / Portion)`;
     }
 
-    function addRow(baseIngredientId = null, amount = "", unit = "", fallbackName = "") {
+    function addRow(baseIngredientId = null, amount = "", unit = "g", fallbackName = "") {
       const row = document.createElement("div");
       row.className = "recipe-row";
       row.dataset.baseId = baseIngredientId || "";
@@ -495,14 +482,34 @@
           display:flex; align-items:center; color:${baseIngredientId ? "inherit" : "var(--muted2, #888)"};">
           ${esc(displayName)}
         </div>
-        <input data-role="amt" type="number" min="0" step="0.01" placeholder="0" value="${esc(amount)}" />
-        <input data-role="unit" list="r-unit-presets" placeholder="g / Stück…" value="${esc(unit)}" />
-        <button type="button" class="danger btn-mini" data-action="rowRemove"
-          style="min-width:0; width:36px; height:36px; padding:0; flex-shrink:0;">×</button>
+        <input data-role="amt" type="number" min="0" step="0.01" placeholder="0" value="${esc(amount)}" style="text-align:center;" />
+        <select data-role="unit">
+          <option value="g">g</option>
+          <option value="ml">ml</option>
+          <option value="Stück">Stück</option>
+          <option value="kg">kg</option>
+          <option value="EL">EL</option>
+          <option value="TL">TL</option>
+          <option value="Prise">Prise</option>
+          <option value="Bund">Bund</option>
+          <option value="Dose">Dose</option>
+          <option value="Pkg">Pkg</option>
+        </select>
+        <button type="button" class="danger btn-mini" data-action="rowRemove" title="Entfernen">×</button>
       `;
 
       const amtEl = row.querySelector("input[data-role=amt]");
       const ingCell = row.querySelector("[data-role=ingredient]");
+      const unitEl = row.querySelector("select[data-role=unit]");
+      const _unitPresets = ["g", "ml", "Stück", "kg", "EL", "TL", "Prise", "Bund", "Dose", "Pkg"];
+      const _effUnit = unit && unit.trim() ? unit.trim() : "g";
+      if (!_unitPresets.includes(_effUnit)) {
+        const _opt = document.createElement("option");
+        _opt.value = _effUnit;
+        _opt.textContent = _effUnit;
+        unitEl.insertBefore(_opt, unitEl.firstChild);
+      }
+      unitEl.value = _effUnit;
 
       function openPicker() {
         window.baseIngredients.openPickerModal(state, persist, "", row.dataset.baseId || null, (id) => {
@@ -538,7 +545,7 @@
         const fallbackName = it.baseIngredientId
           ? ""
           : (L().getIng(state, it.ingredientId)?.name || "(Zutat nicht gefunden)");
-        addRow(it.baseIngredientId || null, it.amount, it.unit || "", fallbackName);
+        addRow(it.baseIngredientId || null, it.amount, it.unit || "g", fallbackName);
       }
     } else {
       addRow();
