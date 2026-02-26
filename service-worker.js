@@ -1,4 +1,4 @@
-/* service-worker.js (build 20260226140000) */
+/* service-worker.js (build 20260226150000) */
 importScripts("./js/appMeta.js");
 
 const META = self.APP_META || {};
@@ -22,6 +22,9 @@ const APP_SHELL = [
   "./js/recipes/recipesLogic.js",
   "./js/recipes/recipesModals.js",
   "./js/recipes/recipesView.js",
+  "./js/shopping/openFoodFacts.js",
+  "./js/shopping/receiptParsing.js",
+  "./js/shopping/receiptData.js",
   "./js/shopping.js",
   "./js/dashboard.js",
   "./js/stats.js",
