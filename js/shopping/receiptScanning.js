@@ -1,6 +1,6 @@
 /* js/shopping/receiptScanning.js
    Receipt scanning helpers: tokenize/similarity, guided scan modal, free scan modal.
-   Extracted from js/shopping.js (v0.6.10).
+   Extracted from js/shopping.js (v0.6.10, updated v0.6.11).
    Exposes: window.receiptScanning
 */
 (() => {
@@ -506,7 +506,7 @@ ${offDebugHtml(state, code)}
       if (a === "close") return close();
 
       if (a === "openBon") {
-        window.openReceiptDetailModal?.(state, persist, receiptId);
+        window.receiptModals?.openReceiptDetailModal?.(state, persist, receiptId);
         return;
       }
 
@@ -1017,7 +1017,7 @@ Die Zutat wird aber in „Zutaten" angelegt (minimal), damit du sie später saub
       const a = btn.getAttribute("data-action");
 
       if (a === "close") return close();
-      if (a === "openBon") return window.openReceiptDetailModal?.(state, persist, receiptId);
+      if (a === "openBon") return window.receiptModals?.openReceiptDetailModal?.(state, persist, receiptId);
       if (a === "resume") {
         resultEl.innerHTML = "";
         resumeScan();
