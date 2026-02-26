@@ -156,7 +156,7 @@ If not visible — fallback checklist:
 ## 6. Modes & Permissions (Hard Rule)
 
 ### Default Mode (Execution Mode)
-- Default is EXECUTION mode:
+- Default behavior is **EXECUTION mode**:
   - Implement ONLY what the current task asks for.
   - Minimal scope; no extra refactors; no "nice-to-have" changes.
   - Keep commits small and focused.
