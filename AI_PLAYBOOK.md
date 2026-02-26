@@ -158,7 +158,7 @@ If not visible — fallback checklist:
 ### Default Mode (Execution Mode)
 - Default behavior is **EXECUTION mode**:
   - Implement ONLY what the current task asks for.
-  - Minimal scope; no extra refactors; no "nice-to-have" changes.
+  - Minimal scope, no extra refactors, no "nice-to-have" changes.
   - Keep commits small and focused.
 
 ### Plan / Audit Mode (Only if explicitly enabled)
