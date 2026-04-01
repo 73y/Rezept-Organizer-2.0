@@ -171,11 +171,11 @@ If not visible — fallback checklist:
 ### Multi-Agent / Parallel Work (Only if explicitly enabled)
 - Multi-agent / parallel coding is ONLY allowed if the user writes: `MULTI-AGENT: ON`
 - If not enabled:
-  - Work sequentially in a single coherent change set.
+  - Work sequentially in one coherent change set.
   - Do not split work across parallel threads/agents.
 
-### Conflict Rule
-- If the task prompt conflicts with this section, this section wins unless the user explicitly overrides it in the prompt.
+### Override Rule
+- The user can override these rules only by explicitly writing the keywords above in the task prompt.
 
 ---
 
